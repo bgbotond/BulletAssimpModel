@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+<!-- ====================================================================== -->
+<!--  AssimpBullet Data -->
+<!-- ====================================================================== -->
+<AssimpBullet>
+  <Bones
+    minLength     = "2.0"
+    capsuleRadius = "0.1"
+    mass          = "0.01">
+    <Bone
+      nodeA = "body"
+      nodeB = "tail"
+      mass  = "3.0">
+    </Bone>
+    <Bone
+      nodeA = "tail"
+      nodeB = "">
+    </Bone>
+    <Bone
+      nodeA = "head"
+      nodeB = "T_beak"
+      mass  = "1.0">
+    </Bone>
+    <Bone
+      nodeA = "T_beak"
+      nodeB = "">
+    </Bone>
+    <Bone
+      nodeA = "B_beak"
+      nodeB = "">
+    </Bone>
+    <Bone
+      nodeA = "L_wing"
+      nodeB = "">
+    </Bone>
+    <Bone
+      nodeA = "R_wing"
+      nodeB = "">
+    </Bone>
+    <Bone
+      nodeA = "L_thigh"
+      nodeB = "L_shin">
+    </Bone>
+    <Bone
+      nodeA = "L_shin"
+      nodeB = "L_foot">
+    </Bone>
+    <Bone
+      nodeA = "L_foot"
+      nodeB = ""
+      mass  = "1.0">
+    </Bone>
+    <Bone
+      nodeA = "R_thigh"
+      nodeB = "R_shin">
+    </Bone>
+    <Bone
+      nodeA = "R_shin"
+      nodeB = "R_foot">
+    </Bone>
+    <Bone
+      nodeA = "R_foot"
+      nodeB = ""
+      mass  = "1.0">
+    </Bone>
+  </Bones>
+
+  <Joints
+      swing1 = "20.0"
+      swing2 = "20.0"
+      twist  = "0.0">
+    <Joint
+      nodeA = "body"
+      nodeB = "head">
+    </Joint>
+    <Joint
+      nodeA = "body"
+      nodeB = "L_wing">
+    </Joint>
+    <Joint
+      nodeA = "body"
+      nodeB = "R_wing">
+    </Joint>
+    <Joint
+      nodeA = "body"
+      nodeB = "L_thigh">
+    </Joint>
+    <Joint
+      nodeA = "body"
+      nodeB = "R_thigh">
+    </Joint>
+    <Joint
+      nodeA = "head"
+      nodeB = "T_beak"
+      swing2 = "0.0">
+    </Joint>
+    <Joint
+      nodeA = "head"
+      nodeB = "B_beak"
+      swing2 = "0.0">
+    </Joint>
+    <Joint
+      nodeA = "body"
+      nodeB = "tail">
+    </Joint>
+    <Joint
+      nodeA = "L_thigh"
+      nodeB = "L_shin">
+    </Joint>
+    <Joint
+      nodeA = "L_shin"
+      nodeB = "L_foot">
+    </Joint>
+    <Joint
+      nodeA = "R_thigh"
+      nodeB = "R_shin">
+    </Joint>
+    <Joint
+      nodeA  = "R_shin"
+      nodeB  = "R_foot">
+    </Joint>
+  </Joints>
+
+  <Hang
+    stringLength = "5.0"
+    stickSize    = "0.2"
+    nodeFront    = "body"
+    posFront     = "end"
+    nodeBack     = "head"
+    posBack      = "end"
+    nodeLeft     = "L_foot"
+    posLeft      = "beg"
+    nodeRight    = "R_foot"
+    posRight     = "beg"
+    nodeCenter   = "body"
+    posCenter    = "beg">
+  </Hang>
+</AssimpBullet>
