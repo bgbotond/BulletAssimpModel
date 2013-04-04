@@ -105,7 +105,9 @@
     </Joint>
     <Joint
       nodeA = "L_thigh"
-      nodeB = "L_shin">
+      nodeB = "L_shin"
+      swing1 = "45.0"
+      swing2 = "45.0">
     </Joint>
     <Joint
       nodeA = "L_shin"
@@ -113,13 +115,50 @@
     </Joint>
     <Joint
       nodeA = "R_thigh"
-      nodeB = "R_shin">
+      nodeB = "R_shin"
+      swing1 = "45.0"
+      swing2 = "45.0">
     </Joint>
     <Joint
       nodeA  = "R_shin"
       nodeB  = "R_foot">
     </Joint>
   </Joints>
+
+  <DisableCollisions>
+    <DisableCollision>
+      <Joint
+        nodeA = "body"
+        nodeB = "head">
+      </Joint>
+      <Joint
+        nodeA = "body"
+        nodeB = "L_wing">
+      </Joint>
+      <Joint
+        nodeA = "body"
+        nodeB = "R_wing">
+      </Joint>
+      <Joint
+        nodeA = "body"
+        nodeB = "L_thigh">
+      </Joint>
+      <Joint
+        nodeA = "body"
+        nodeB = "R_thigh">
+      </Joint>
+    </DisableCollision>
+    <DisableCollision>
+      <Joint
+        nodeA = "head"
+        nodeB = "T_beak">
+      </Joint>
+      <Joint
+        nodeA = "head"
+        nodeB = "B_beak">
+      </Joint>
+    </DisableCollision>
+  </DisableCollisions>
 
   <Hang
     stringLength = "5.0"

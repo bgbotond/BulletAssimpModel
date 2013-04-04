@@ -8,9 +8,10 @@
 #include "AssimpLoader.h"
 #include "Node.h"
 
-typedef std::shared_ptr< class AssimpBone  > AssimpBoneRef;
-typedef std::shared_ptr< class AssimpJoint > AssimpJointRef;
-typedef std::shared_ptr< class AssimpHang  > AssimpHangRef;
+typedef std::shared_ptr< class AssimpBone             > AssimpBoneRef;
+typedef std::shared_ptr< class AssimpJoint            > AssimpJointRef;
+typedef std::shared_ptr< class AssimpDisableCollision > AssimpDisableCollisionRef;
+typedef std::shared_ptr< class AssimpHang             > AssimpHangRef;
 
 class AssimpBone
 {
@@ -72,6 +73,21 @@ protected:
 	btConeTwistConstraint* mConstraint;
 };
 
+class AssimpDisableCollision
+{
+public:
+	typedef std::vector< AssimpJointRef > AssimpJoints;
+
+public:
+	AssimpDisableCollision();
+
+	void addAssimpJoint( const AssimpJointRef& assimpJoint );
+	AssimpJoints getAssimpJoints() const;
+
+protected:
+	AssimpJoints mAssimpJoints;
+};
+
 class AssimpHang
 {
 public:
@@ -120,8 +136,15 @@ public:
 
 class AssimpModel
 {
-typedef std::vector< AssimpBoneRef  > AssimpBones;
-typedef std::vector< AssimpJointRef > AssimpJoints;
+	typedef std::vector< AssimpBoneRef             > AssimpBones;
+	typedef std::vector< AssimpJointRef            > AssimpJoints;
+	typedef std::vector< AssimpDisableCollisionRef > AssimpDisableCollisions;
+
+public:
+	enum AnimateType
+	{
+		ANIMATE_SIGN
+	};
 
 public:
 	AssimpModel( btDynamicsWorld *ownerWorld, btSoftBodyWorldInfo *softBodyWorldInfo, const ci::Vec3f &worldOffset, const boost::filesystem::path &fileModel, const boost::filesystem::path &fileData );
@@ -132,13 +155,18 @@ public:
 
 	static void setupParams();
 
+	void animate( AnimateType animateType );
+
 protected:
 	void loadData( const boost::filesystem::path& fileData );
 	void loadDataBones( const ci::XmlTree& xmlNode );
 	void loadDataJoints( const ci::XmlTree& xmlNode );
+	void loadDataDisableCollisions( const ci::XmlTree& xmlNode );
+	void loadDataDisableCollision( const ci::XmlTree& xmlNode );
 	void loadDataHang( const ci::XmlTree& xmlNode );
 
-	AssimpBoneRef getAssimpBone( const std::string& name );
+	AssimpBoneRef  getAssimpBone( const std::string& name );
+	AssimpJointRef getAssimpJoint( const std::string& nameA, const std::string& nameB );
 
 	float getLength( const mndl::NodeRef &nodeA, const mndl::NodeRef &nodeB );
 
@@ -149,10 +177,14 @@ protected:
 	void buildBone( const AssimpBoneRef& assimpBone );
 	void buildJoints();
 	void buildJoint( const AssimpJointRef& assimpJoint );
+	void buildDisableCollisions();
+	void buildDisableCollision( const AssimpDisableCollisionRef& assimpDisableCollision );
 	void buildHang();
 	void updateBones();
 	void updateBone( const AssimpBoneRef& assimpBone );
 	void updateHang( const ci::Vec3f pos, const ci::Vec3f dir, const ci::Vec3f norm );
+
+	void animateSign();
 
 	void  printNodes();
 protected:
@@ -161,7 +193,7 @@ protected:
 
 	mndl::assimp::AssimpLoader mAssimpLoader;
 
-	static mndl::kit::params::PInterfaceGl            mParamsBird;
+	static mndl::params::PInterfaceGl            mParamsBird;
 
 	// rigid body
 	static float       mLinearDamping;  // [0-1]
@@ -178,7 +210,7 @@ protected:
 // 	static float       mLinERP;
 // 	static float       mAngCFM;
 
-	static mndl::kit::params::PInterfaceGl            mParamsRope;
+	static mndl::params::PInterfaceGl            mParamsRope;
 	static float       mRopeSize;
 	static int         mRopePart;
 	static float       mRopeMass;
@@ -203,16 +235,18 @@ protected:
 
 	static bool        mDrawSkin;
 	static bool        mEnableWireframe;
+	static float       mForce;
 
 // 	static float       mTau;
 // 	static float       mDamping;
 // 	static float       mImpulseClamp;
 
-	AssimpBones     mAssimpBones;
-	AssimpJoints    mAssimpJoints;
-	AssimpHangRef   mAssimpHang;
-	float           mMinBoneLength;
-	float           mCapsuleRadius;
+	AssimpBones             mAssimpBones;
+	AssimpJoints            mAssimpJoints;
+	AssimpDisableCollisions mAssimpDisableCollisions;
+	AssimpHangRef           mAssimpHang;
+	float                   mMinBoneLength;
+	float                   mCapsuleRadius;
 };
 
 #endif // __AssimpModel_H__

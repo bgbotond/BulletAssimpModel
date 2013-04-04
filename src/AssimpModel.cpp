@@ -18,7 +18,7 @@ using namespace ci;
 using namespace mndl;
 using namespace mndl::assimp;
 
-mndl::kit::params::PInterfaceGl   AssimpModel::mParamsBird;
+mndl::params::PInterfaceGl        AssimpModel::mParamsBird;
 
 float                             AssimpModel::mLinearDamping             = 0.85f;
 float                             AssimpModel::mAngularDamping            = 0.85f;
@@ -34,7 +34,7 @@ float                             AssimpModel::mStopERP = 0.65f;
 // float                             AssimpModel::mAngCFM  = 0.0f;
 
 
-mndl::kit::params::PInterfaceGl   AssimpModel::mParamsRope;
+mndl::params::PInterfaceGl        AssimpModel::mParamsRope;
 float                             AssimpModel::mRopeSize    = 5.0f;   // rope size
 int                               AssimpModel::mRopePart    = 16;     // rope part count
 float                             AssimpModel::mRopeMass    = 5.0f;   // mass
@@ -59,6 +59,7 @@ int                               AssimpModel::mCiterations = 4;      // Cluster
 
 bool                              AssimpModel::mDrawSkin = true;
 bool                              AssimpModel::mEnableWireframe = false;
+float                             AssimpModel::mForce = 1.0;
 
 // float                             AssimpModel::mTau          = 0.f01;
 // float                             AssimpModel::mDamping      = 1.0f;
@@ -86,6 +87,7 @@ AssimpModel::AssimpModel( btDynamicsWorld* ownerWorld, btSoftBodyWorldInfo* soft
 
 	buildBones();
 	buildJoints();
+	buildDisableCollisions();
 	buildHang();
 }
 
@@ -103,6 +105,9 @@ void AssimpModel::loadData( const boost::filesystem::path& fileData )
 
 	if( node.hasChild( "Joints" ))
 		loadDataJoints( node.getChild( "Joints" ) );
+
+	if( node.hasChild( "DisableCollisions" ))
+		loadDataDisableCollisions( node.getChild( "DisableCollisions" ) );
 
 	if( node.hasChild( "Hang" ))
 		loadDataHang( node.getChild( "Hang" ) );
@@ -176,6 +181,39 @@ void AssimpModel::loadDataJoints( const XmlTree& xmlNode )
 	}
 }
 
+void AssimpModel::loadDataDisableCollisions( const XmlTree& xmlNode )
+{
+	for( XmlTree::ConstIter child = xmlNode.begin(); child != xmlNode.end(); ++child )
+	{
+		if( child->getTag() != "DisableCollision" )
+			continue;
+
+		loadDataDisableCollision( *child );
+	}
+}
+
+void AssimpModel::loadDataDisableCollision( const XmlTree& xmlNode )
+{
+	AssimpDisableCollisionRef assimpDisableCollision = AssimpDisableCollisionRef( new AssimpDisableCollision() );
+
+	for( XmlTree::ConstIter child = xmlNode.begin(); child != xmlNode.end(); ++child )
+	{
+		if( child->getTag() != "Joint" )
+			continue;
+
+		std::string nameA = child->getAttributeValue<std::string>( "nodeA", "" );
+		std::string nameB = child->getAttributeValue<std::string>( "nodeB", "" );
+
+		AssimpJointRef assimpJoint = getAssimpJoint( nameA, nameB );
+
+		if( assimpJoint )
+			assimpDisableCollision->addAssimpJoint( assimpJoint );
+	}
+
+	if( assimpDisableCollision->getAssimpJoints().size() > 0 )
+		mAssimpDisableCollisions.push_back( assimpDisableCollision ); 
+}
+
 void AssimpModel::loadDataHang( const XmlTree& xmlNode )
 {
 	float stringLength = xmlNode.getAttributeValue<float>( "stringLength", 5.0f );
@@ -224,6 +262,21 @@ AssimpBoneRef AssimpModel::getAssimpBone( const std::string& name )
 
 	return AssimpBoneRef();
 }
+
+AssimpJointRef AssimpModel::getAssimpJoint( const std::string& nameA, const std::string& nameB )
+{
+	for( AssimpJoints::iterator it = mAssimpJoints.begin(); it != mAssimpJoints.end(); ++it )
+	{
+		AssimpJointRef& assimpJoint = *it;
+
+		if( assimpJoint->getAssimpBoneA()->getNode()->getName() == nameA 
+		 && assimpJoint->getAssimpBoneB()->getNode()->getName() == nameB )
+			return assimpJoint;
+	}
+
+	return AssimpJointRef();
+}
+
 
 float AssimpModel::getLength( const mndl::NodeRef &nodeA, const mndl::NodeRef &nodeB )
 {
@@ -335,6 +388,35 @@ void AssimpModel::buildJoint( const AssimpJointRef& assimpJoint )
 	assimpJoint->setConstraint( coneC );
 
 	mOwnerWorld->addConstraint( coneC, true );
+}
+
+void AssimpModel::buildDisableCollisions()
+{
+	for( AssimpDisableCollisions::iterator it = mAssimpDisableCollisions.begin(); it != mAssimpDisableCollisions.end(); ++it )
+	{
+		AssimpDisableCollisionRef& assimpDisableCollision = *it;
+
+		buildDisableCollision( assimpDisableCollision );
+	}
+}
+
+void AssimpModel::buildDisableCollision( const AssimpDisableCollisionRef& assimpDisableCollision )
+{
+	for( int pos1 = 0; pos1 < assimpDisableCollision->getAssimpJoints().size(); ++pos1 )
+	{
+		const AssimpJointRef assimpJoint1 = assimpDisableCollision->getAssimpJoints()[ pos1 ];
+
+		for( int pos2 = pos1 + 1 ; pos2 < assimpDisableCollision->getAssimpJoints().size(); ++pos2 )
+		{
+			const AssimpJointRef assimpJoint2 = assimpDisableCollision->getAssimpJoints()[ pos2 ];
+
+			assimpJoint1->getAssimpBoneA()->getRigidBody()->addConstraintRef( assimpJoint2->getConstraint() );
+			assimpJoint1->getAssimpBoneB()->getRigidBody()->addConstraintRef( assimpJoint2->getConstraint() );
+
+			assimpJoint2->getAssimpBoneA()->getRigidBody()->addConstraintRef( assimpJoint1->getConstraint() );
+			assimpJoint2->getAssimpBoneB()->getRigidBody()->addConstraintRef( assimpJoint1->getConstraint() );
+		}
+	}
 }
 
 void AssimpModel::buildHang()
@@ -505,6 +587,9 @@ AssimpModel::~AssimpModel()
 		btRigidBody* rigidBody = assimpBone->getRigidBody();
 		assimpBone->setRigidBody( 0 );
 
+		while( rigidBody->getNumConstraintRefs() > 0 )
+			rigidBody->removeConstraintRef( rigidBody->getConstraintRef( 0 ) );
+
 		mOwnerWorld->removeRigidBody( rigidBody );
 
 		if( rigidBody->getMotionState() )
@@ -581,6 +666,8 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 	Vec3f dir2  = rot * dir;
 	Vec3f norm2 = rot * norm;
 
+	dir2.y *= -1;
+
 	Quatf normToDir( Vec3f( 0, 0, 1 ), M_PI / 2.f ); // 90 degree rotation around z
 	Vec3f dir0 = norm2 * normToDir; // direction from normal
 	Quatf dirQuat( dir0, dir2 ); // rotation from calculated direction to actual one
@@ -629,7 +716,7 @@ btRigidBody* AssimpModel::localCreateRigidBody( btScalar mass, const btTransform
 	btRigidBody::btRigidBodyConstructionInfo rbInfo( mass, myMotionState, shape, localInertia );
 	btRigidBody* body = new btRigidBody( rbInfo );
 
-	mOwnerWorld->addRigidBody( body, CT_BONE, CT_GROUND );
+	mOwnerWorld->addRigidBody( body );//, CT_BONE, CT_GROUND );
 
 	return body;
 }
@@ -673,7 +760,7 @@ btSoftBody* AssimpModel::localCreateRope( const Vec3f& from, const Vec3f& to, bt
 
 void AssimpModel::setupParams()
 {
-	mParamsBird = mndl::kit::params::PInterfaceGl( "AssimpModel", Vec2i( 250, 350 ), Vec2i( 500, 50 ) );
+	mParamsBird = mndl::params::PInterfaceGl( "AssimpModel", Vec2i( 250, 350 ), Vec2i( 500, 50 ) );
 	mParamsBird.addPersistentSizeAndPosition();
 
 	mParamsBird.addText( "RigidBody" );
@@ -694,8 +781,9 @@ void AssimpModel::setupParams()
 	mParamsBird.addText( "Assimp" );
 	mParamsBird.addPersistentParam( "DrawSkin"                  , &mDrawSkin, true );
 	mParamsBird.addPersistentParam( "EnableWireframe"           , &mEnableWireframe, false );
+	mParamsBird.addPersistentParam( "force"                     , &mForce, 1.0f, "min=0.0 max=3.0 step=0.1" );
 
-	mParamsRope = mndl::kit::params::PInterfaceGl( "AssimpRope", Vec2i( 250, 350 ), Vec2i( 700, 50 ) );
+	mParamsRope = mndl::params::PInterfaceGl( "AssimpRope", Vec2i( 250, 350 ), Vec2i( 700, 50 ) );
 	mParamsRope.addPersistentSizeAndPosition();
 	mParamsRope.addPersistentParam( "String size"                              , &mRopeSize    , 5.0f, "min=0.0 max=15.0 step=0.1" );
 	mParamsRope.addPersistentParam( "Part"                                     , &mRopePart    , 16,   "min=4 max=50 step=1"         );
@@ -725,6 +813,27 @@ void AssimpModel::setupParams()
 // 	mParams.addPersistentParam( "Impulse clamp", &mImpulseClamp, 0.0f,  "min=0.0 max=10.0 step=0.1" );
 }
 
+void AssimpModel::animate( AnimateType animateType )
+{
+	switch( animateType )
+	{
+	case ANIMATE_SIGN : animateSign(); break;
+	default : assert( 0 );
+	}
+}
+
+void AssimpModel::animateSign()
+{
+	AssimpBoneRef assimpBone = getAssimpBone( "B_beak" );
+
+	Vec3f pos   = Vec3f::yAxis() * ( assimpBone->getLength() );
+//	Vec3f pos   = Vec3f( 0, 0, 0 );//Vec3f::yAxis() * ( assimpBone->getLength() / 2 );
+//	Quatf rot   = assimpBone->getNode()->getDerivedOrientation();
+//	Vec3f force = rot * ( Vec3f::yAxis() * mForce );
+	Vec3f force = -Vec3f::yAxis() * mForce;
+
+	assimpBone->getRigidBody()->applyForce( CinderBullet::convert( force ), CinderBullet::convert( pos ) );
+}
 
 /*
 node: Scene - parent NULL - position [0,0,0] - orientation [-1,0,0] @ 90deg - scale [1,1,1] - derivedposition [0,0,0] - derivedorientation [-1,0,0] @ 90deg - derivedscale[1,1,1]
@@ -929,6 +1038,21 @@ void AssimpJoint::setConstraint( btConeTwistConstraint* constraint )
 btConeTwistConstraint* AssimpJoint::getConstraint() const
 {
 	return mConstraint;
+}
+
+AssimpDisableCollision::AssimpDisableCollision()
+	: mAssimpJoints()
+{
+}
+
+void AssimpDisableCollision::addAssimpJoint( const AssimpJointRef& assimpJoint )
+{
+	mAssimpJoints.push_back( assimpJoint );
+}
+
+AssimpDisableCollision::AssimpJoints AssimpDisableCollision::getAssimpJoints() const
+{
+	return mAssimpJoints;
 }
 
 AssimpHang::AssimpHang()

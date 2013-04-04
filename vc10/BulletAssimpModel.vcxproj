@@ -109,7 +109,7 @@
     <ClCompile Include="..\..\..\cinder_0.8.5\blocks\Cinder-Assimp\src\AssimpLoader.cpp" />
     <ClCompile Include="..\..\..\cinder_0.8.5\blocks\Cinder-Assimp\src\Node.cpp" />
     <ClCompile Include="..\..\..\cinder_0.8.5\blocks\Cinder-LeapSdk\src\Cinder-LeapSdk.cpp" />
-    <ClCompile Include="..\..\..\cinder_0.8.5\blocks\MndlKit\src\PParams.cpp" />
+    <ClCompile Include="..\..\..\cinder_0.8.5\blocks\MndlKit\src\mndlkit\params\PParams.cpp" />
     <ClCompile Include="..\src\AssimpModel.cpp" />
     <ClCompile Include="..\src\BulletConstraint.cpp" />
     <ClCompile Include="..\src\BulletWorld.cpp" />
@@ -129,6 +129,9 @@
     <ClInclude Include="..\include\CinderBullet.h" />
     <ClInclude Include="..\include\CinderBulletDebugDrawer.h" />
     <ClInclude Include="..\include\Resources.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\assets\madar_0318.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

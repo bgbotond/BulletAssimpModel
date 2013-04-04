@@ -183,7 +183,7 @@ btRigidBody *BulletWorld::createRigidBody( btDynamicsWorld *world, btScalar mass
 	rbInfo.m_additionalDamping = true;
 	btRigidBody *body = new btRigidBody( rbInfo );
 
-	world->addRigidBody( body, CT_GROUND, CT_GROUND | CT_BONE );
+	world->addRigidBody( body );//, CT_GROUND, CT_GROUND | CT_BONE );
 
 	return body;
 }
@@ -213,9 +213,14 @@ void BulletWorld::updateAssimpModel( AssimpModel *assimpModel, const ci::Vec3f p
 	assimpModel->update( posConv, dir, norm );
 }
 
+void BulletWorld::animateAssimpModel( AssimpModel* assimpModel, AssimpModel::AnimateType animateType )
+{
+	assimpModel->animate( animateType );
+}
+
 void BulletWorld::setupParams()
 {
-	mParams = mndl::kit::params::PInterfaceGl( "Bullet", ci::Vec2i( 250, 350 ), ci::Vec2i( 300, 50 ) );
+	mParams = mndl::params::PInterfaceGl( "Bullet", ci::Vec2i( 250, 350 ), ci::Vec2i( 300, 50 ) );
 	mParams.addPersistentSizeAndPosition();
 
 	mParams.addText( "World" );

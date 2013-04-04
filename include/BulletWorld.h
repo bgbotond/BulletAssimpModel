@@ -39,6 +39,8 @@ public:
 	void removeAssimpModel( AssimpModel *assimpModel );
 	void updateAssimpModel( AssimpModel *assimpModel, const ci::Vec3f pos, const ci::Vec3f dir, const ci::Vec3f norm );
 
+	void animateAssimpModel( AssimpModel *assimpModel, AssimpModel::AnimateType animateType );
+
 protected:
 	btRigidBody *createRigidBody( btDynamicsWorld *world, btScalar mass, const btTransform &startTransform, btCollisionShape *shape );
 
@@ -66,7 +68,7 @@ protected:
 	ci::Vec3f                                  mGravity;
 
 	double                                     mTime;
-	mndl::kit::params::PInterfaceGl            mParams;
+	mndl::params::PInterfaceGl                 mParams;
 	static const int                           DEBUG_DRAW_NUM = 16;
 	bool                                       mDebugDrawActive[ DEBUG_DRAW_NUM ];
 

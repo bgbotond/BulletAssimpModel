@@ -1,5 +1,6 @@
 #include "cinder/app/AppNative.h"
 #include "cinder/gl/gl.h"
+#include "cinder/gl/Light.h"
 #include "cinder/Utilities.h"
 #include "cinder/MayaCamUI.h"
 #include "AntTweakBar.h"
@@ -33,7 +34,7 @@ protected:
 	AssimpModel *mAssimpModel;
 	AssimpModel *mAssimpModelDebug;
 
-	mndl::kit::params::PInterfaceGl mParams;
+	mndl::params::PInterfaceGl mParams;
 	float mFps;
 
 	// camera
@@ -58,6 +59,8 @@ protected:
 	Vec3f                   mHandPos;
 	Vec3f                   mHandDir;
 	Vec3f                   mHandNorm;
+
+	gl::Light* mLight;
 };
 
 void BulletAssimpModelApp::setup()
@@ -75,6 +78,22 @@ void BulletAssimpModelApp::setup()
 	cam.setEyePoint( mCameraEyePoint );
 	cam.setCenterOfInterestPoint( mCameraCenterOfInterestPoint );
 	mMayaCam.setCurrentCam( cam );
+
+	{
+		glEnable( GL_LIGHTING );
+		glEnable( GL_DEPTH_TEST );
+		glEnable( GL_RESCALE_NORMAL );
+
+		//create light
+		mLight = new gl::Light( gl::Light::DIRECTIONAL, 0 );
+		mLight->lookAt( Vec3f( 0, 30, 0 ), Vec3f( 0, 0, 0 ) );
+		mLight->setAmbient( Color( 1.0f, 1.0f, 1.0f ) );
+		mLight->setDiffuse( Color( 1.0f, 1.0f, 1.0f ) );
+		mLight->setSpecular( Color( 1.0f, 1.0f, 1.0f ) );
+		mLight->setShadowParams( 100.0f, 1.0f, 20.0f );
+		mLight->update( cam );
+		mLight->enable();
+	}
 
 	mBulletWorld.setup();
 
@@ -124,9 +143,9 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 
 void BulletAssimpModelApp::setupParams()
 {
-	mndl::kit::params::PInterfaceGl::load( "params.xml" );
+	mndl::params::PInterfaceGl::load( "params.xml" );
 
-	mParams = mndl::kit::params::PInterfaceGl( "Parameters", Vec2i( 230, 300 ), Vec2i( 50, 50 ) );
+	mParams = mndl::params::PInterfaceGl( "Parameters", Vec2i( 230, 300 ), Vec2i( 50, 50 ) );
 	mParams.addPersistentSizeAndPosition();
 
 	mFps = 0;
@@ -197,7 +216,7 @@ void BulletAssimpModelApp::keyDown( KeyEvent event )
 
 	case KeyEvent::KEY_s:
 		{
-			mndl::kit::params::PInterfaceGl::showAllParams( !mParams.isVisible() );
+			mndl::params::PInterfaceGl::showAllParams( !mParams.isVisible() );
 			if ( isFullScreen() )
 			{
 				if ( mParams.isVisible() )
@@ -251,7 +270,12 @@ void BulletAssimpModelApp::keyDown( KeyEvent event )
 	case KeyEvent::KEY_ESCAPE:
 		quit();
 		break;
-
+	case KeyEvent::KEY_p:
+		if( mAssimpModelDebug )
+			mBulletWorld.animateAssimpModel( mAssimpModelDebug, AssimpModel::ANIMATE_SIGN );
+		if( mAssimpModel )
+			mBulletWorld.animateAssimpModel( mAssimpModel, AssimpModel::ANIMATE_SIGN );
+		break;
 	default:
 		mBulletWorld.keyDown( event );
 	}
@@ -336,7 +360,7 @@ void BulletAssimpModelApp::draw()
 	gl::enableDepthWrite();
 
 	mBulletWorld.draw();
-	mndl::kit::params::PInterfaceGl::draw();
+	mndl::params::PInterfaceGl::draw();
 
 	if( mAssimpModel )
 	{
@@ -359,7 +383,7 @@ void BulletAssimpModelApp::shutdown()
 	mLeap->removeCallback( mCallbackId );
 	mHands.clear();
 
-	mndl::kit::params::PInterfaceGl::save();
+	mndl::params::PInterfaceGl::save();
 }
 
 CINDER_APP_NATIVE( BulletAssimpModelApp, RendererGl )
