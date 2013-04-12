@@ -7,7 +7,6 @@
 #include "CinderBullet.h"
 #include "AssimpModel.h"
 #include "BulletSoftBody/btSoftBodyHelpers.h"
-#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 #include "BulletWorld.h"
 
 #ifndef CONSTRAINT_DEBUG_SIZE
@@ -59,7 +58,8 @@ int                               AssimpModel::mCiterations = 4;      // Cluster
 
 bool                              AssimpModel::mDrawSkin = true;
 bool                              AssimpModel::mEnableWireframe = false;
-float                             AssimpModel::mForce = 1.0;
+
+bool                              AssimpModel::mShowDebugDrawRigidBody = false;
 
 // float                             AssimpModel::mTau          = 0.f01;
 // float                             AssimpModel::mDamping      = 1.0f;
@@ -89,6 +89,8 @@ AssimpModel::AssimpModel( btDynamicsWorld* ownerWorld, btSoftBodyWorldInfo* soft
 	buildJoints();
 	buildDisableCollisions();
 	buildHang();
+
+//	setShowDebugDrawRigidBody( false );
 }
 
 void AssimpModel::loadData( const boost::filesystem::path& fileData )
@@ -111,6 +113,9 @@ void AssimpModel::loadData( const boost::filesystem::path& fileData )
 
 	if( node.hasChild( "Hang" ))
 		loadDataHang( node.getChild( "Hang" ) );
+
+	if( node.hasChild( "Anims" ))
+		loadDataAnims( node.getChild( "Anims" ) );
 }
 
 void AssimpModel::loadDataBones( const XmlTree& xmlNode )
@@ -216,38 +221,81 @@ void AssimpModel::loadDataDisableCollision( const XmlTree& xmlNode )
 
 void AssimpModel::loadDataHang( const XmlTree& xmlNode )
 {
-	float stringLength = xmlNode.getAttributeValue<float>( "stringLength", 5.0f );
-	float stickSize    = xmlNode.getAttributeValue<float>( "stickSize",    0.2f );
+	float       stickSize = xmlNode.getAttributeValue<float>( "stickSize", 0.2f );
+	std::string nameFront = xmlNode.getAttributeValue<std::string>( "nodeFront", "" );
+	std::string nameBack  = xmlNode.getAttributeValue<std::string>( "nodeBack",  "" );
+	std::string nameLeft  = xmlNode.getAttributeValue<std::string>( "nodeLeft",  "" );
+	std::string nameRight = xmlNode.getAttributeValue<std::string>( "nodeRigth", "" );
+	std::string nameCross = xmlNode.getAttributeValue<std::string>( "nodeCross", "" );
 
-	std::string nameFront  = xmlNode.getAttributeValue<std::string>( "nodeFront",  "" );
-	std::string posFront   = xmlNode.getAttributeValue<std::string>( "posFront",   "" );
+	mndl::NodeRef nodeFront = mAssimpLoader.getAssimpNode( nameFront );
+	mndl::NodeRef nodeBack  = mAssimpLoader.getAssimpNode( nameBack  );
+	mndl::NodeRef nodeLeft  = mAssimpLoader.getAssimpNode( nameLeft  );
+	mndl::NodeRef nodeRight = mAssimpLoader.getAssimpNode( nameRight );
+	mndl::NodeRef nodeCross = mAssimpLoader.getAssimpNode( nameCross );
 
-	std::string nameBack   = xmlNode.getAttributeValue<std::string>( "nodeBack",   "" );
-	std::string posBack    = xmlNode.getAttributeValue<std::string>( "posBack",    "" );
+	mAssimpHang = AssimpHangRef( new AssimpHang( stickSize, nodeFront, nodeBack, nodeLeft, nodeRight, nodeCross ) );
 
-	std::string nameLeft   = xmlNode.getAttributeValue<std::string>( "nodeLeft",   "" );
-	std::string posLeft    = xmlNode.getAttributeValue<std::string>( "posLeft",    "" );
+	for( XmlTree::ConstIter child = xmlNode.begin(); child != xmlNode.end(); ++child )
+	{
+		if( child->getTag() != "string" )
+			continue;
 
-	std::string nameRight  = xmlNode.getAttributeValue<std::string>( "nodeRight",  "" );
-	std::string posRight   = xmlNode.getAttributeValue<std::string>( "posRight",   "" );
+		loadDataString( *child );
+	}
+}
 
-	std::string nameCenter = xmlNode.getAttributeValue<std::string>( "nodeCenter", "" );
-	std::string posCenter  = xmlNode.getAttributeValue<std::string>( "posCenter",  "" );
+void AssimpModel::loadDataString( const XmlTree& xmlNode )
+{
+	std::string nameNodeHang   = xmlNode.getAttributeValue<std::string>( "node",       "" );
+	std::string nameBonePos    = xmlNode.getAttributeValue<std::string>( "bonePos",    "" );
+	std::string nameBoneHolder = xmlNode.getAttributeValue<std::string>( "boneHolder", "" );
 
-	mAssimpHang = AssimpHangRef( new AssimpHang() );
+	mndl::NodeRef nodeHang         = mAssimpLoader.getAssimpNode( nameNodeHang );
+	AssimpBoneRef assimpBonePos    = getAssimpBone( nameBonePos    );
+	AssimpBoneRef assimpBoneHolder = getAssimpBone( nameBoneHolder );
 
-	mAssimpHang->mStringLength     = stringLength;
-	mAssimpHang->mStickSize        = stickSize;
-	mAssimpHang->mAssimpBoneFront  = getAssimpBone( nameFront  );
-	mAssimpHang->mAssimpBoneBack   = getAssimpBone( nameBack   );
-	mAssimpHang->mAssimpBoneLeft   = getAssimpBone( nameLeft   );
-	mAssimpHang->mAssimpBoneRight  = getAssimpBone( nameRight  );
-	mAssimpHang->mAssimpBoneCenter = getAssimpBone( nameCenter );
-	mAssimpHang->mPosTypeFront     = AssimpHang::getTypeFromString( posFront  );
-	mAssimpHang->mPosTypeBack      = AssimpHang::getTypeFromString( posBack   );
-	mAssimpHang->mPosTypeLeft      = AssimpHang::getTypeFromString( posLeft   );
-	mAssimpHang->mPosTypeRight     = AssimpHang::getTypeFromString( posRight  );
-	mAssimpHang->mPosTypeCenter    = AssimpHang::getTypeFromString( posCenter );
+	AssimpStringRef assimpString = AssimpStringRef( new AssimpString( nodeHang, assimpBonePos, assimpBoneHolder ) );
+
+	mAssimpHang->addAssimpString( assimpString );
+}
+
+void AssimpModel::loadDataAnims( const XmlTree& xmlNode )
+{
+	for( XmlTree::ConstIter child = xmlNode.begin(); child != xmlNode.end(); ++child )
+	{
+		if( child->getTag() != "Anim" )
+			continue;
+
+		loadDataAnim( *child );
+	}
+}
+
+void AssimpModel::loadDataAnim( const XmlTree& xmlNode )
+{
+	std::string name = xmlNode.getAttributeValue<std::string>( "name", "" );
+
+	AssimpAnimRef assimpAnim = AssimpAnimRef( new AssimpAnim( name ) );
+
+	for( XmlTree::ConstIter child = xmlNode.begin(); child != xmlNode.end(); ++child )
+	{
+		if( child->getTag() != "Bone" )
+			continue;
+
+		std::string nameBone = child->getAttributeValue<std::string>( "name", "" );
+		float       rotateX  = child->getAttributeValue<float>( "rotateX", 0.0 );
+		float       rotateY  = child->getAttributeValue<float>( "rotateY", 0.0 );
+		float       rotateZ  = child->getAttributeValue<float>( "rotateZ", 0.0 );
+
+		AssimpBoneRef assimpBone = getAssimpBone( nameBone );
+		Vec3f         impulse    = Vec3f( rotateX, rotateY, rotateZ );
+
+		AssimpAnimBoneRef assimpAnimBone = AssimpAnimBoneRef( new AssimpAnimBone( assimpBone, impulse ) );
+
+		assimpAnim->addAssimpAnimBone( assimpAnimBone );
+	}
+
+	mAssimpAnims.push_back( assimpAnim );
 }
 
 AssimpBoneRef AssimpModel::getAssimpBone( const std::string& name )
@@ -402,11 +450,11 @@ void AssimpModel::buildDisableCollisions()
 
 void AssimpModel::buildDisableCollision( const AssimpDisableCollisionRef& assimpDisableCollision )
 {
-	for( int pos1 = 0; pos1 < assimpDisableCollision->getAssimpJoints().size(); ++pos1 )
+	for( unsigned int pos1 = 0; pos1 < assimpDisableCollision->getAssimpJoints().size(); ++pos1 )
 	{
 		const AssimpJointRef assimpJoint1 = assimpDisableCollision->getAssimpJoints()[ pos1 ];
 
-		for( int pos2 = pos1 + 1 ; pos2 < assimpDisableCollision->getAssimpJoints().size(); ++pos2 )
+		for( unsigned int pos2 = pos1 + 1 ; pos2 < assimpDisableCollision->getAssimpJoints().size(); ++pos2 )
 		{
 			const AssimpJointRef assimpJoint2 = assimpDisableCollision->getAssimpJoints()[ pos2 ];
 
@@ -421,106 +469,54 @@ void AssimpModel::buildDisableCollision( const AssimpDisableCollisionRef& assimp
 
 void AssimpModel::buildHang()
 {
-	mAssimpHang->mCompoundShape = new btCompoundShape();
+	btCompoundShape* compoundShape = new btCompoundShape();
 
-	Vec3f posFront = mAssimpHang->mAssimpBoneFront->getNode()->getDerivedPosition();
-	if( mAssimpHang->mPosTypeFront == AssimpHang::PT_END )
-		posFront += Vec3f::yAxis() * mAssimpHang->mAssimpBoneFront->getNode()->getDerivedOrientation() * mAssimpHang->mAssimpBoneFront->getLength();
+	float lengthFrontBack = ( mAssimpHang->getNodeFront()->getDerivedPosition() - mAssimpHang->getNodeBack()->getDerivedPosition() ).length();
+	float lengthLeftRight = ( mAssimpHang->getNodeLeft()->getDerivedPosition() - mAssimpHang->getNodeRight()->getDerivedPosition() ).length();
 
-	Vec3f posBack = mAssimpHang->mAssimpBoneBack->getNode()->getDerivedPosition();
-	if( mAssimpHang->mPosTypeBack == AssimpHang::PT_END )
-		posBack += Vec3f::yAxis() * mAssimpHang->mAssimpBoneBack->getNode()->getDerivedOrientation() * mAssimpHang->mAssimpBoneBack->getLength();
-
-	Vec3f posLeft = mAssimpHang->mAssimpBoneLeft->getNode()->getDerivedPosition();
-	if( mAssimpHang->mPosTypeLeft == AssimpHang::PT_END )
-		posLeft += Vec3f::yAxis() * mAssimpHang->mAssimpBoneLeft->getNode()->getDerivedOrientation() * mAssimpHang->mAssimpBoneLeft->getLength();
-
-	Vec3f posRight = mAssimpHang->mAssimpBoneRight->getNode()->getDerivedPosition();
-	if( mAssimpHang->mPosTypeRight == AssimpHang::PT_END )
-		posRight += Vec3f::yAxis() * mAssimpHang->mAssimpBoneRight->getNode()->getDerivedOrientation() * mAssimpHang->mAssimpBoneRight->getLength();
-
-	Vec3f posCenter = mAssimpHang->mAssimpBoneCenter->getNode()->getDerivedPosition();
-	if( mAssimpHang->mPosTypeCenter == AssimpHang::PT_END )
-		posCenter += Vec3f::yAxis() * mAssimpHang->mAssimpBoneCenter->getNode()->getDerivedOrientation() * mAssimpHang->mAssimpBoneCenter->getLength();
-
-	Vec3f posCross = Vec3f( posLeft.x, posFront.y, 0 );
-
-	mAssimpHang->mPosCross  = posCross;
-	mAssimpHang->mPosFront  = posFront;
-	mAssimpHang->mPosBack   = posBack;
-	mAssimpHang->mPosLeft   = posLeft;
-	mAssimpHang->mPosRight  = posRight;
-	mAssimpHang->mPosCenter = posCenter;
-
-	mAssimpHang->mPosCross   += Vec3f( 0, mRopeSize, 0 );
-	mAssimpHang->mPosFront.y  = mAssimpHang->mPosCross.y;
-	mAssimpHang->mPosBack.y   = mAssimpHang->mPosCross.y;
-	mAssimpHang->mPosLeft.y   = mAssimpHang->mPosCross.y;
-	mAssimpHang->mPosRight.y  = mAssimpHang->mPosCross.y;
-	mAssimpHang->mPosCenter.y = mAssimpHang->mPosCross.y;
-
-	float lengthFrontBack = ( mAssimpHang->mPosFront - mAssimpHang->mPosBack  ).length();
-	float lengthLeftRight = ( mAssimpHang->mPosLeft  - mAssimpHang->mPosRight ).length();
-
-	mAssimpHang->mShapeFrontBack = new btBoxShape( btVector3( lengthFrontBack / 2 + 2 * mAssimpHang->mStickSize, mAssimpHang->mStickSize, mAssimpHang->mStickSize ));
-	mAssimpHang->mShapeLeftRight = new btBoxShape( btVector3( mAssimpHang->mStickSize, mAssimpHang->mStickSize, lengthLeftRight / 2 + 2 * mAssimpHang->mStickSize ));
+	btBoxShape* shapeFrontBack = new btBoxShape( btVector3( lengthFrontBack / 2 + 2 * mAssimpHang->getStickSize(), mAssimpHang->getStickSize(), mAssimpHang->getStickSize() ) );
+	btBoxShape* shapeLeftRight = new btBoxShape( btVector3( mAssimpHang->getStickSize(), mAssimpHang->getStickSize(), lengthLeftRight / 2 + 2 * mAssimpHang->getStickSize() ) );
 
 	Vec3f pos;
 	Quatf rot;
 	btTransform transform;
 
-	Vec3f posOffset = mAssimpHang->mPosFront - ( mAssimpHang->mPosFront - mAssimpHang->mPosBack ).normalized() * lengthFrontBack / 2;
+	Vec3f posOffset = mAssimpHang->getNodeFront()->getDerivedPosition() - ( mAssimpHang->getNodeFront()->getDerivedPosition() - mAssimpHang->getNodeBack()->getDerivedPosition() ).normalized() * lengthFrontBack / 2;
 
-	pos = posOffset - mAssimpHang->mPosCross;
+	pos = posOffset - mAssimpHang->getNodeCross()->getDerivedPosition();
 	transform.setIdentity();
 	transform.setOrigin( CinderBullet::convert( pos ));
-	mAssimpHang->mCompoundShape->addChildShape( transform, mAssimpHang->mShapeFrontBack );
+	compoundShape->addChildShape( transform, shapeFrontBack );
 
 	pos = Vec3f::zero();
 	transform.setIdentity();
 	transform.setOrigin( CinderBullet::convert( pos ));
-	mAssimpHang->mCompoundShape->addChildShape( transform, mAssimpHang->mShapeLeftRight );
+	compoundShape->addChildShape( transform, shapeLeftRight );
 
-	pos = mAssimpHang->mPosCross;
+	pos = mAssimpHang->getNodeCross()->getDerivedPosition();
 	transform.setIdentity();
 	transform.setOrigin( CinderBullet::convert( pos ));
-	mAssimpHang->mRigidBody = localCreateRigidBody( mAssimpHang->mStickSize * 4, transform, mAssimpHang->mCompoundShape );
+	btRigidBody* rigidBody = localCreateRigidBody( mAssimpHang->getStickSize() * 4, transform, compoundShape );
 
-	mAssimpHang->mRigidBody->setCollisionFlags( mAssimpHang->mRigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT );
+	rigidBody->setCollisionFlags( rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT );
+
+	mAssimpHang->setCompoundShape( compoundShape );
+	mAssimpHang->setRigidBody( rigidBody );
 
 	// hang rope
-	Vec3f from, to;
-	btRigidBody* rigidBodyFrom,* rigidBodyTo;
+	for( AssimpHang::AssimpStrings::const_iterator it = mAssimpHang->getAssimpStrings().begin(); it != mAssimpHang->getAssimpStrings().end(); ++it )
+	{
+		AssimpStringRef assimpString = *it;
 
-	from = posFront;
-	to   = mAssimpHang->mPosFront;
-	rigidBodyFrom = getAssimpBone( "body" )->getRigidBody();
-	rigidBodyTo   = mAssimpHang->mRigidBody;
-	mAssimpHang->mRopeFront = localCreateRope( from, to, rigidBodyFrom, rigidBodyTo );
+		Vec3f        from          = assimpString->getAssimpBonePos()->getNode()->getDerivedPosition();
+		Vec3f        to            = assimpString->getNodeHang()->getDerivedPosition();
+		btRigidBody* rigidBodyFrom = assimpString->getAssimpBoneHolder()->getRigidBody();
+		btRigidBody* rigidBodyTo   = mAssimpHang->getRigidBody();
 
-	from = posBack;
-	to   = mAssimpHang->mPosBack;
-	rigidBodyFrom = getAssimpBone( "head" )->getRigidBody();
-	rigidBodyTo   = mAssimpHang->mRigidBody;
-	mAssimpHang->mRopeBack = localCreateRope( from, to, rigidBodyFrom, rigidBodyTo );
+		btSoftBody* rope = localCreateRope( from, to, rigidBodyFrom, rigidBodyTo );
 
-	from = posLeft;
-	to   = mAssimpHang->mPosLeft;
-	rigidBodyFrom = getAssimpBone( "L_foot" )->getRigidBody();
-	rigidBodyTo   = mAssimpHang->mRigidBody;
-	mAssimpHang->mRopeLeft = localCreateRope( from, to, rigidBodyFrom, rigidBodyTo );
-
-	from = posRight;
-	to   = mAssimpHang->mPosRight;
-	rigidBodyFrom = getAssimpBone( "R_foot" )->getRigidBody();
-	rigidBodyTo   = mAssimpHang->mRigidBody;
-	mAssimpHang->mRopeRight = localCreateRope( from, to, rigidBodyFrom, rigidBodyTo );
-
-	from = posCenter;
-	to   = mAssimpHang->mPosCenter;
-	rigidBodyFrom = getAssimpBone( "body" )->getRigidBody();
-	rigidBodyTo   = mAssimpHang->mRigidBody;
-	mAssimpHang->mRopeCenter = localCreateRope( from, to, rigidBodyFrom, rigidBodyTo );
+		assimpString->setRope( rope );
+	}
 }
 
 void AssimpModel::updateBones()
@@ -563,12 +559,53 @@ void AssimpModel::printNodes()
 		mndl::NodeRef node = mAssimpLoader.getAssimpNode( *it );
 		mndl::NodeRef nodeParent = node->getParent();
 
-		ci::app::App::get()->console() << "Node: " << node->getName() << " Parent: " << ( nodeParent ? nodeParent->getName() : "-" ) << " position " << node->getPosition() << " orientation " << node->getOrientation() << " scale " << node->getScale() << " derivedposition " << node->getDerivedPosition() << " derivedorientation " << node->getDerivedOrientation() << " derivedscale " << node->getDerivedScale() << std::endl;
+		app::App::get()->console() << "Node: " << node->getName() << " Parent: " << ( nodeParent ? nodeParent->getName() : "-" ) << " position " << node->getPosition() << " orientation " << node->getOrientation() << " scale " << node->getScale() << " derivedposition " << node->getDerivedPosition() << " derivedorientation " << node->getDerivedOrientation() << " derivedscale " << node->getDerivedScale() << std::endl;
 	}
+}
+
+bool AssimpModel::isEqual( const Vec3f& vec1, const Vec3f& vec2 ) const
+{
+	if( math<float>::abs( vec1.x - vec2.x ) < EPSILON
+	 && math<float>::abs( vec1.y - vec2.y ) < EPSILON
+	 && math<float>::abs( vec1.z - vec2.z ) < EPSILON )
+		return true;
+
+	return false;
 }
 
 AssimpModel::~AssimpModel()
 {
+	{
+		mOwnerWorld->removeRigidBody( mAssimpHang->getRigidBody() );
+
+		if( mAssimpHang->getRigidBody()->getMotionState() )
+			delete mAssimpHang->getRigidBody()->getMotionState();
+
+		delete mAssimpHang->getRigidBody();
+		mAssimpHang->setRigidBody( 0 );
+
+		while( mAssimpHang->getCompoundShape()->getNumChildShapes() )
+		{
+			btCollisionShape* shape = mAssimpHang->getCompoundShape()->getChildShape( 0 );
+			mAssimpHang->getCompoundShape()->removeChildShape( shape );
+			delete shape;
+		}
+
+		delete mAssimpHang->getCompoundShape();
+		mAssimpHang->setCompoundShape( 0 );
+
+		for( AssimpHang::AssimpStrings::const_iterator it = mAssimpHang->getAssimpStrings().begin(); it != mAssimpHang->getAssimpStrings().end(); ++it )
+		{
+			AssimpStringRef assimpString = *it;
+			( ( btSoftRigidDynamicsWorld* )mOwnerWorld )->removeSoftBody( assimpString->getRope() );
+			delete assimpString->getRope();
+			assimpString->setRope( 0 );
+		}
+		mAssimpHang->getAssimpStrings().clear();
+	}
+
+	mAssimpAnims.clear();
+
 	for( AssimpJoints::iterator it = mAssimpJoints.begin(); it != mAssimpJoints.end(); ++it )
 	{
 		AssimpJointRef& assimpJoint = *it;
@@ -603,42 +640,6 @@ AssimpModel::~AssimpModel()
 		delete shape;
 	}
 	mAssimpBones.clear();
-
-	{
-		mOwnerWorld->removeRigidBody( mAssimpHang->mRigidBody );
-
-		if( mAssimpHang->mRigidBody->getMotionState() )
-			delete mAssimpHang->mRigidBody->getMotionState();
-
-		delete mAssimpHang->mRigidBody;
-		mAssimpHang->mRigidBody = 0;
-
-		delete mAssimpHang->mCompoundShape;
-		delete mAssimpHang->mShapeFrontBack;
-		delete mAssimpHang->mShapeLeftRight;
-
-		mAssimpHang->mCompoundShape  = 0;
-		mAssimpHang->mShapeFrontBack = 0;
-		mAssimpHang->mShapeLeftRight = 0;
-
-		((btSoftRigidDynamicsWorld*)mOwnerWorld)->removeSoftBody( mAssimpHang->mRopeFront  );
-		((btSoftRigidDynamicsWorld*)mOwnerWorld)->removeSoftBody( mAssimpHang->mRopeBack   );
-		((btSoftRigidDynamicsWorld*)mOwnerWorld)->removeSoftBody( mAssimpHang->mRopeLeft   );
-		((btSoftRigidDynamicsWorld*)mOwnerWorld)->removeSoftBody( mAssimpHang->mRopeRight  );
-		((btSoftRigidDynamicsWorld*)mOwnerWorld)->removeSoftBody( mAssimpHang->mRopeCenter );
-
-		delete mAssimpHang->mRopeFront;
-		delete mAssimpHang->mRopeBack;
-		delete mAssimpHang->mRopeLeft;
-		delete mAssimpHang->mRopeRight;
-		delete mAssimpHang->mRopeCenter;
-
-		mAssimpHang->mRopeFront  = 0;
-		mAssimpHang->mRopeBack   = 0;
-		mAssimpHang->mRopeLeft   = 0;
-		mAssimpHang->mRopeRight  = 0;
-		mAssimpHang->mRopeCenter = 0;
-	}
 }
 
 void AssimpModel::update( const Vec3f pos, const Vec3f dir, const Vec3f norm )
@@ -657,36 +658,37 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 	 || norm == Vec3f::zero())
 		return;
 
-	if( dir  == -Vec3f::zAxis()
-	 && norm == -Vec3f::yAxis())
+	if( isEqual( dir,  -Vec3f::zAxis() )
+	 && isEqual( norm, -Vec3f::yAxis() ) )
 		return;
 
-	Quatf rot = Quatf( Vec3f::yAxis(), -M_PI / 2.0f );
+	Quatf rot = Quatf( Vec3f::yAxis(), M_PI / 2.0f );
 	Vec3f pos2  = rot * pos;
 	Vec3f dir2  = rot * dir;
 	Vec3f norm2 = rot * norm;
 
-	dir2.y *= -1;
-
-	Quatf normToDir( Vec3f( 0, 0, 1 ), M_PI / 2.f ); // 90 degree rotation around z
+	Quatf normToDir( Vec3f( 0, 0, 1 ), -M_PI / 2.f ); // 90 degree rotation around z
 	Vec3f dir0 = norm2 * normToDir; // direction from normal
 	Quatf dirQuat( dir0, dir2 ); // rotation from calculated direction to actual one
 	Quatf normQuat( Vec3f( 0, -1, 0 ), norm2 ); // rotation to actual normal
 	Quatf rotate = normQuat * dirQuat; // final rotation
+	rotate.normalize();
 
-	Vec3f posCenter = mAssimpHang->mPosCross;
+	Vec3f posCenter = mAssimpHang->getNodeCross()->getDerivedPosition();
 	btTransform transform;
 	transform.setIdentity();
 	transform.setRotation( CinderBullet::convert( rotate ));
 	transform.setOrigin( CinderBullet::convert( posCenter ));
-	btMotionState* motionState = mAssimpHang->mRigidBody->getMotionState();
+	btMotionState* motionState = mAssimpHang->getRigidBody()->getMotionState();
 	motionState->setWorldTransform( transform );
+	mAssimpHang->getRigidBody()->setMotionState( motionState );
 
-	mAssimpHang->mRopeFront ->m_nodes[ mAssimpHang->mRopeFront ->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( mAssimpHang->mPosFront  - mAssimpHang->mPosCross ) ) + mAssimpHang->mPosCross );
-	mAssimpHang->mRopeBack  ->m_nodes[ mAssimpHang->mRopeBack  ->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( mAssimpHang->mPosBack   - mAssimpHang->mPosCross ) ) + mAssimpHang->mPosCross );
-	mAssimpHang->mRopeLeft  ->m_nodes[ mAssimpHang->mRopeLeft  ->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( mAssimpHang->mPosLeft   - mAssimpHang->mPosCross ) ) + mAssimpHang->mPosCross );
-	mAssimpHang->mRopeRight ->m_nodes[ mAssimpHang->mRopeRight ->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( mAssimpHang->mPosRight  - mAssimpHang->mPosCross ) ) + mAssimpHang->mPosCross );
-	mAssimpHang->mRopeCenter->m_nodes[ mAssimpHang->mRopeCenter->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( mAssimpHang->mPosCenter - mAssimpHang->mPosCross ) ) + mAssimpHang->mPosCross );
+	for( AssimpHang::AssimpStrings::const_iterator it = mAssimpHang->getAssimpStrings().begin(); it != mAssimpHang->getAssimpStrings().end(); ++it )
+	{
+		AssimpStringRef assimpString = *it;
+
+		assimpString->getRope()->m_nodes[ assimpString->getRope()->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( assimpString->getNodeHang()->getDerivedPosition() - mAssimpHang->getNodeCross()->getDerivedPosition() ) ) + mAssimpHang->getNodeCross()->getDerivedPosition() );
+	}
 }
 
 void AssimpModel::draw()
@@ -717,6 +719,11 @@ btRigidBody* AssimpModel::localCreateRigidBody( btScalar mass, const btTransform
 	btRigidBody* body = new btRigidBody( rbInfo );
 
 	mOwnerWorld->addRigidBody( body );//, CT_BONE, CT_GROUND );
+
+	if( mShowDebugDrawRigidBody )
+		body->setCollisionFlags( body->getCollisionFlags() & ~( btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT ) );
+	else
+		body->setCollisionFlags( body->getCollisionFlags() |    btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT );
 
 	return body;
 }
@@ -758,6 +765,30 @@ btSoftBody* AssimpModel::localCreateRope( const Vec3f& from, const Vec3f& to, bt
 	return rope;
 }
 
+void AssimpModel::setShowDebugDrawRigidBody( bool showDebugDrawRigidBody )
+{
+	if( mShowDebugDrawRigidBody == showDebugDrawRigidBody )
+		return;
+
+	mShowDebugDrawRigidBody = showDebugDrawRigidBody;
+
+	for( AssimpBones::iterator it = mAssimpBones.begin(); it != mAssimpBones.end(); ++it )
+	{
+		AssimpBoneRef& assimpBone = *it;
+		btRigidBody*   rigidBody = assimpBone->getRigidBody();
+
+		if( mShowDebugDrawRigidBody )
+			rigidBody->setCollisionFlags( rigidBody->getCollisionFlags() & ~( btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT ) );
+		else
+			rigidBody->setCollisionFlags( rigidBody->getCollisionFlags() |    btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT );
+	}
+}
+
+bool AssimpModel::getShowDebugDrawRigidBody() const
+{
+	return mShowDebugDrawRigidBody;
+}
+
 void AssimpModel::setupParams()
 {
 	mParamsBird = mndl::params::PInterfaceGl( "AssimpModel", Vec2i( 250, 350 ), Vec2i( 500, 50 ) );
@@ -781,7 +812,7 @@ void AssimpModel::setupParams()
 	mParamsBird.addText( "Assimp" );
 	mParamsBird.addPersistentParam( "DrawSkin"                  , &mDrawSkin, true );
 	mParamsBird.addPersistentParam( "EnableWireframe"           , &mEnableWireframe, false );
-	mParamsBird.addPersistentParam( "force"                     , &mForce, 1.0f, "min=0.0 max=3.0 step=0.1" );
+	mParamsBird.addPersistentParam( "ShowDebugDraw"             , &mShowDebugDrawRigidBody, true );
 
 	mParamsRope = mndl::params::PInterfaceGl( "AssimpRope", Vec2i( 250, 350 ), Vec2i( 700, 50 ) );
 	mParamsRope.addPersistentSizeAndPosition();
@@ -813,27 +844,42 @@ void AssimpModel::setupParams()
 // 	mParams.addPersistentParam( "Impulse clamp", &mImpulseClamp, 0.0f,  "min=0.0 max=10.0 step=0.1" );
 }
 
-void AssimpModel::animate( AnimateType animateType )
+int AssimpModel::getNumAnimate()
 {
-	switch( animateType )
+	return (int)mAssimpAnims.size();
+}
+
+std::vector< std::string > AssimpModel::getAnimateNames()
+{
+	std::vector< std::string > animateNames;
+
+	for( AssimpAnims::const_iterator it = mAssimpAnims.begin(); it != mAssimpAnims.end(); ++it )
 	{
-	case ANIMATE_SIGN : animateSign(); break;
-	default : assert( 0 );
+		AssimpAnimRef assimpAnim = *it;
+		animateNames.push_back( assimpAnim->getName() );
+	}
+
+	return animateNames;
+}
+
+void AssimpModel::doAnimate( int pos )
+{
+	if( pos < 0 || pos >= getNumAnimate() )
+		return;
+
+	AssimpAnimRef assimpAnim = mAssimpAnims[ pos ];
+
+	for( AssimpAnim::AssimpAnimBones::const_iterator it = assimpAnim->getAssimpAnimBones().begin(); it != assimpAnim->getAssimpAnimBones().end(); ++it )
+	{
+		AssimpAnimBoneRef assimpAnimBone = *it;
+
+		Vec3f relPos = Vec3f::yAxis() * assimpAnimBone->getAssimpBone()->getNode()->getDerivedOrientation() * ( assimpAnimBone->getAssimpBone()->getLength() / 2 );
+		Vec3f impulse = relPos.cross( assimpAnimBone->getImpulse() );
+		assimpAnimBone->getAssimpBone()->getRigidBody()->applyTorqueImpulse( CinderBullet::convert( impulse ) );
 	}
 }
 
-void AssimpModel::animateSign()
-{
-	AssimpBoneRef assimpBone = getAssimpBone( "B_beak" );
 
-	Vec3f pos   = Vec3f::yAxis() * ( assimpBone->getLength() );
-//	Vec3f pos   = Vec3f( 0, 0, 0 );//Vec3f::yAxis() * ( assimpBone->getLength() / 2 );
-//	Quatf rot   = assimpBone->getNode()->getDerivedOrientation();
-//	Vec3f force = rot * ( Vec3f::yAxis() * mForce );
-	Vec3f force = -Vec3f::yAxis() * mForce;
-
-	assimpBone->getRigidBody()->applyForce( CinderBullet::convert( force ), CinderBullet::convert( pos ) );
-}
 
 /*
 node: Scene - parent NULL - position [0,0,0] - orientation [-1,0,0] @ 90deg - scale [1,1,1] - derivedposition [0,0,0] - derivedorientation [-1,0,0] @ 90deg - derivedscale[1,1,1]
@@ -924,6 +970,11 @@ Scene
 		R_thigh
 			R_shin
 				R_foot
+	head_node
+	body_node
+	l_foot_node
+	r_foot_node
+	tail_node
 */
 
 AssimpBone::AssimpBone( const mndl::NodeRef& node )
@@ -1055,41 +1106,145 @@ AssimpDisableCollision::AssimpJoints AssimpDisableCollision::getAssimpJoints() c
 	return mAssimpJoints;
 }
 
-AssimpHang::AssimpHang()
-: mStringLength( 5.0f )
-, mStickSize( 0.2f )
-, mAssimpBoneFront()
-, mPosTypeFront( PT_BEG )
-, mAssimpBoneBack()
-, mPosTypeBack( PT_BEG )
-, mAssimpBoneLeft()
-, mPosTypeLeft( PT_BEG )
-, mAssimpBoneRight()
-, mPosTypeRight( PT_BEG )
-, mAssimpBoneCenter()
-, mPosTypeCenter( PT_BEG )
-, mPosFront( Vec3f::zero() )
-, mPosBack( Vec3f::zero() )
-, mPosLeft( Vec3f::zero() )
-, mPosRight( Vec3f::zero() )
-, mPosCenter( Vec3f::zero() )
-, mPosCross( Vec3f::zero() )
-, mCompoundShape( 0 )
-, mShapeFrontBack( 0 )
-, mShapeLeftRight( 0 )
-, mRigidBody( 0 )
-, mRopeFront( 0 )
-, mRopeBack( 0 )
-, mRopeLeft( 0 )
-, mRopeRight( 0 )
-, mRopeCenter( 0 )
+AssimpHang::AssimpHang( float stickSize, const mndl::NodeRef& nodeFront, const mndl::NodeRef& nodeBack, const mndl::NodeRef& nodeLeft, const mndl::NodeRef& nodeRigth, const mndl::NodeRef& nodeCross )
+: mStickSize( stickSize )
+, mNodeFront( nodeFront )
+, mNodeBack( nodeBack )
+, mNodeLeft( nodeLeft )
+, mNodeRight( nodeRigth )
+, mNodeCross( nodeCross )
+, mAssimpStrings()
+, mCompoundShape()
+, mRigidBody()
 {
 }
 
-AssimpHang::PosType AssimpHang::getTypeFromString( const std::string& name )
+float AssimpHang::getStickSize() const
 {
-	/**/ if( name == "beg"    ) return PT_BEG;
-	else if( name == "end"    ) return PT_END;
+	return mStickSize;
+}
 
-	return PT_BEG;
+mndl::NodeRef AssimpHang::getNodeFront() const
+{
+	return mNodeFront;
+}
+
+mndl::NodeRef AssimpHang::getNodeBack() const
+{
+	return mNodeBack;
+}
+
+mndl::NodeRef AssimpHang::getNodeLeft() const
+{
+	return mNodeLeft;
+}
+
+mndl::NodeRef AssimpHang::getNodeRight() const
+{
+	return mNodeRight;
+}
+
+mndl::NodeRef AssimpHang::getNodeCross() const
+{
+	return mNodeCross;
+}
+
+void AssimpHang::setCompoundShape( btCompoundShape* shape )
+{
+	mCompoundShape = shape;
+}
+
+btCompoundShape* AssimpHang::getCompoundShape() const
+{
+	return mCompoundShape;
+}
+
+void AssimpHang::setRigidBody( btRigidBody* rigidBody )
+{
+	mRigidBody = rigidBody;
+}
+
+btRigidBody* AssimpHang::getRigidBody() const
+{
+	return mRigidBody;
+}
+
+void AssimpHang::addAssimpString( const AssimpStringRef& assimpString )
+{
+	mAssimpStrings.push_back( assimpString );
+}
+
+AssimpHang::AssimpStrings& AssimpHang::getAssimpStrings()
+{
+	return mAssimpStrings;
+}
+
+AssimpString::AssimpString( const mndl::NodeRef& nodeHang, const AssimpBoneRef& assimpBonePos, const AssimpBoneRef& assimpBoneHolder )
+: mNodeHang( nodeHang )
+, mAssimpBonePos( assimpBonePos )
+, mAssimpBoneHolder( assimpBoneHolder )
+, mRope()
+{
+}
+
+const mndl::NodeRef& AssimpString::getNodeHang() const
+{
+	return mNodeHang;
+}
+
+const AssimpBoneRef& AssimpString::getAssimpBonePos() const
+{
+	return mAssimpBonePos;
+}
+
+const AssimpBoneRef& AssimpString::getAssimpBoneHolder() const
+{
+	return mAssimpBoneHolder;
+}
+
+void AssimpString::setRope( btSoftBody* rope )
+{
+	mRope = rope;
+}
+
+btSoftBody* AssimpString::getRope() const
+{
+	return mRope;
+}
+
+AssimpAnimBone::AssimpAnimBone( const AssimpBoneRef& assimpBone, const Vec3f& impulse )
+: mAssimpBone( assimpBone )
+, mImpulse( impulse )
+{
+}
+
+AssimpBoneRef AssimpAnimBone::getAssimpBone() const
+{
+	return mAssimpBone;
+}
+
+Vec3f AssimpAnimBone::getImpulse() const
+{
+	return mImpulse;
+}
+
+AssimpAnim::AssimpAnim( const std::string& name )
+: mName( name )
+, mAssimpAnimBones()
+{
+}
+
+const std::string& AssimpAnim::getName() const
+{
+	return mName;
+}
+
+void AssimpAnim::addAssimpAnimBone( const AssimpAnimBoneRef& assimpAnimBone )
+{
+	mAssimpAnimBones.push_back( assimpAnimBone );
+}
+
+AssimpAnim::AssimpAnimBones& AssimpAnim::getAssimpAnimBones()
+{
+	return mAssimpAnimBones;
 }

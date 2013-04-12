@@ -22,6 +22,20 @@ CinderBulletDebugDrawer::CinderBulletDebugDrawer()
 	setDrawEnable( DT_FastWireframe       , false );
 	setDrawEnable( DT_DrawNormals         , false );
 	setDrawEnable( DT_DrawTransform       , false );
+
+	setSoftDrawEnable( SDT_Nodes       , false );
+	setSoftDrawEnable( SDT_Links       , true  );
+	setSoftDrawEnable( SDT_Faces       , false );
+	setSoftDrawEnable( SDT_Tetras      , false );
+	setSoftDrawEnable( SDT_Normals     , false );
+	setSoftDrawEnable( SDT_Contacts    , false );
+	setSoftDrawEnable( SDT_Anchors     , false );
+	setSoftDrawEnable( SDT_Notes       , false );
+	setSoftDrawEnable( SDT_Clusters    , false );
+	setSoftDrawEnable( SDT_NodeTree    , false );
+	setSoftDrawEnable( SDT_FaceTree    , false );
+	setSoftDrawEnable( SDT_ClusterTree , false );
+	setSoftDrawEnable( SDT_Joints      , false );
 }
 
 CinderBulletDebugDrawer::~CinderBulletDebugDrawer()
@@ -91,6 +105,16 @@ int CinderBulletDebugDrawer::getDebugMode() const
 	return mDebugModes;
 }
 
+void CinderBulletDebugDrawer::setSoftDebugMode( int softDebugMode )
+{
+	mSoftDebugModes = softDebugMode;
+}
+
+int CinderBulletDebugDrawer::getSoftDebugMode() const
+{
+	return mSoftDebugModes;
+}
+
 void CinderBulletDebugDrawer::drawTransform( const btTransform &transform, btScalar orthoLen )
 {
 	if( ! mDrawTransform )
@@ -154,4 +178,55 @@ bool CinderBulletDebugDrawer::getDrawEnable( DrawType drawType ) const
 	}
 
 	return( mDebugModes & debugModel ) != 0;
+}
+
+void CinderBulletDebugDrawer::setSoftDrawEnable( SoftDrawType softDrawType, bool enable )
+{
+	fDrawFlags::_ softDebugModel = fDrawFlags::Nodes;
+
+	switch( softDrawType )
+	{
+	case SDT_Nodes        : softDebugModel = fDrawFlags::Nodes;         break;
+	case SDT_Links        : softDebugModel = fDrawFlags::Links;         break;
+	case SDT_Faces        : softDebugModel = fDrawFlags::Faces;         break;
+	case SDT_Tetras       : softDebugModel = fDrawFlags::Tetras;        break;
+	case SDT_Normals      : softDebugModel = fDrawFlags::Normals;       break;
+	case SDT_Contacts     : softDebugModel = fDrawFlags::Contacts;      break;
+	case SDT_Anchors      : softDebugModel = fDrawFlags::Anchors;       break;
+	case SDT_Notes        : softDebugModel = fDrawFlags::Notes;         break;
+	case SDT_Clusters     : softDebugModel = fDrawFlags::Clusters;      break;
+	case SDT_NodeTree     : softDebugModel = fDrawFlags::NodeTree;      break;
+	case SDT_FaceTree     : softDebugModel = fDrawFlags::FaceTree;      break;
+	case SDT_ClusterTree  : softDebugModel = fDrawFlags::ClusterTree;   break;
+	case SDT_Joints       : softDebugModel = fDrawFlags::Joints;        break;
+	}
+
+	if( enable )
+		mSoftDebugModes |= softDebugModel;
+	else
+		mSoftDebugModes &= ~softDebugModel;
+}
+
+bool CinderBulletDebugDrawer::getSoftDrawEnable( SoftDrawType softDrawType ) const
+{
+	fDrawFlags::_ softDebugModel = fDrawFlags::Nodes;
+
+	switch( softDrawType )
+	{
+	case SDT_Nodes        : softDebugModel = fDrawFlags::Nodes;         break;
+	case SDT_Links        : softDebugModel = fDrawFlags::Links;         break;
+	case SDT_Faces        : softDebugModel = fDrawFlags::Faces;         break;
+	case SDT_Tetras       : softDebugModel = fDrawFlags::Tetras;        break;
+	case SDT_Normals      : softDebugModel = fDrawFlags::Normals;       break;
+	case SDT_Contacts     : softDebugModel = fDrawFlags::Contacts;      break;
+	case SDT_Anchors      : softDebugModel = fDrawFlags::Anchors;       break;
+	case SDT_Notes        : softDebugModel = fDrawFlags::Notes;         break;
+	case SDT_Clusters     : softDebugModel = fDrawFlags::Clusters;      break;
+	case SDT_NodeTree     : softDebugModel = fDrawFlags::NodeTree;      break;
+	case SDT_FaceTree     : softDebugModel = fDrawFlags::FaceTree;      break;
+	case SDT_ClusterTree  : softDebugModel = fDrawFlags::ClusterTree;   break;
+	case SDT_Joints       : softDebugModel = fDrawFlags::Joints;        break;
+	}
+
+	return( mSoftDebugModes & softDebugModel ) != 0;
 }

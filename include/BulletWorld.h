@@ -2,6 +2,7 @@
 #define __BulletWorld_H__
 
 #include "btBulletDynamicsCommon.h"
+#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 #include "BulletSoftBody/btSoftBody.h"
 #include "CinderBulletDebugDrawer.h"
 #include "BulletConstraint.h"
@@ -39,8 +40,6 @@ public:
 	void removeAssimpModel( AssimpModel *assimpModel );
 	void updateAssimpModel( AssimpModel *assimpModel, const ci::Vec3f pos, const ci::Vec3f dir, const ci::Vec3f norm );
 
-	void animateAssimpModel( AssimpModel *assimpModel, AssimpModel::AnimateType animateType );
-
 protected:
 	btRigidBody *createRigidBody( btDynamicsWorld *world, btScalar mass, const btTransform &startTransform, btCollisionShape *shape );
 
@@ -58,7 +57,7 @@ protected:
 	btCollisionDispatcher                     *mDispatcher;
 	btBroadphaseInterface                     *mBroadphase;
 	btSequentialImpulseConstraintSolver       *mSolver;
-	btDynamicsWorld                           *mSoftRigidDynamicsWorld;
+	btSoftRigidDynamicsWorld                  *mSoftRigidDynamicsWorld;
 	btSoftBodyWorldInfo                        mSoftBodyWorldInfo;
 
 	btAlignedObjectArray< btCollisionShape* >  mCollisionShapes;
@@ -71,6 +70,9 @@ protected:
 	mndl::params::PInterfaceGl                 mParams;
 	static const int                           DEBUG_DRAW_NUM = 16;
 	bool                                       mDebugDrawActive[ DEBUG_DRAW_NUM ];
+
+	static const int                           SOFT_DEBUG_DRAW_NUM = 13;
+	bool                                       mSoftDebugDrawActive[ SOFT_DEBUG_DRAW_NUM ];
 
 	BulletConstraint                           mBulletConstraint;
 	bool                                       mDragging;

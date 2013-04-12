@@ -59,6 +59,7 @@ protected:
 	Vec3f                   mHandPos;
 	Vec3f                   mHandDir;
 	Vec3f                   mHandNorm;
+	bool                    mDrawVectors;
 
 	gl::Light* mLight;
 };
@@ -91,8 +92,8 @@ void BulletAssimpModelApp::setup()
 		mLight->setDiffuse( Color( 1.0f, 1.0f, 1.0f ) );
 		mLight->setSpecular( Color( 1.0f, 1.0f, 1.0f ) );
 		mLight->setShadowParams( 100.0f, 1.0f, 20.0f );
-		mLight->update( cam );
-		mLight->enable();
+//		mLight->update( cam );
+//		mLight->enable();
 	}
 
 	mBulletWorld.setup();
@@ -154,8 +155,8 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addText( "Camera" );
 	mParams.addPersistentParam( "Lock camera", &mCameraLock, true );
 	mParams.addPersistentParam( "Fov", &mCameraFov, 45.f, "min=20 max=180 step=.1" );
-	mParams.addPersistentParam( "Eye", &mCameraEyePoint, Vec3f( 0.0f, 1.0f, 10.0f ));
-	mParams.addPersistentParam( "Center of Interest", &mCameraCenterOfInterestPoint, Vec3f( 0.0f, 1.0f, 0.0f ));
+	mParams.addPersistentParam( "Eye", &mCameraEyePoint, Vec3f( 0.0f, 15.0f, -40.0f ));
+	mParams.addPersistentParam( "Center of Interest", &mCameraCenterOfInterestPoint, Vec3f( 0.0f, 15.0f, 0.0f ));
 	mParams.addText( "Ragdoll" );
 	mParams.addPersistentParam( "Position" , &mPosition , Vec3f( 0.0f, 10.0f, 0.0f ));
 	mParams.addPersistentParam( "Direction", &mDirection, Vec3f( 0.0f,  0.0f, -1.0f ));
@@ -170,6 +171,7 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Hand pos" , &mHandPos , Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "Hand dir" , &mHandDir , Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "Hand norm", &mHandNorm, Vec3f( -1, -1, -1 ), "", true );
+	mParams.addPersistentParam( "DrawVectors", &mDrawVectors, false );
 }
 
 void BulletAssimpModelApp::mouseDown( MouseEvent event )
@@ -270,11 +272,24 @@ void BulletAssimpModelApp::keyDown( KeyEvent event )
 	case KeyEvent::KEY_ESCAPE:
 		quit();
 		break;
-	case KeyEvent::KEY_p:
-		if( mAssimpModelDebug )
-			mBulletWorld.animateAssimpModel( mAssimpModelDebug, AssimpModel::ANIMATE_SIGN );
-		if( mAssimpModel )
-			mBulletWorld.animateAssimpModel( mAssimpModel, AssimpModel::ANIMATE_SIGN );
+	case KeyEvent::KEY_0:
+	case KeyEvent::KEY_1:
+	case KeyEvent::KEY_2:
+	case KeyEvent::KEY_3:
+	case KeyEvent::KEY_4:
+	case KeyEvent::KEY_5:
+	case KeyEvent::KEY_6:
+	case KeyEvent::KEY_7:
+	case KeyEvent::KEY_8:
+	case KeyEvent::KEY_9:
+		{
+			int pos = event.getCode() - KeyEvent::KEY_0;
+
+			if( mAssimpModelDebug )
+				mAssimpModelDebug->doAnimate( pos );
+			if( mAssimpModel )
+				mAssimpModel->doAnimate( pos );
+		}
 		break;
 	default:
 		mBulletWorld.keyDown( event );
@@ -311,6 +326,9 @@ void BulletAssimpModelApp::update()
 		mCameraEyePoint              = cam.getEyePoint();
 		mCameraCenterOfInterestPoint = cam.getCenterOfInterestPoint();
 	}
+
+	mLight->update( cam );
+	mLight->enable();
 
 	// Update device
 	if( mLeap && mLeap->isConnected() )
@@ -362,12 +380,14 @@ void BulletAssimpModelApp::draw()
 	mBulletWorld.draw();
 	mndl::params::PInterfaceGl::draw();
 
-	if( mAssimpModel )
+	if( mAssimpModel && mDrawVectors )
 	{
+		Quatf rot = Quatf( Vec3f::yAxis(), M_PI / 2.0f );
+
 		glColor4ub( 255, 0, 0, 255 );
-		gl::drawVector( Vec3f::zero(), mHandDir * 3, 1, .5 );
+		gl::drawVector( Vec3f::zero(), rot * mHandDir * 3, 1, .5 );
 		glColor4ub( 0, 255, 0, 255 );
-		gl::drawVector( Vec3f::zero(), mHandNorm * 3, 1, .5 );
+		gl::drawVector( Vec3f::zero(), rot * mHandNorm * 3, 1, .5 );
 	}
 }
 

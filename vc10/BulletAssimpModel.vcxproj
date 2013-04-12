@@ -131,7 +131,8 @@
     <ClInclude Include="..\include\Resources.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\madar_0318.xml" />
+    <None Include="..\assets\madar_0406.dae" />
+    <None Include="..\assets\madar_0406.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

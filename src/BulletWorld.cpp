@@ -2,7 +2,6 @@
 
 #include "CinderBullet.h"
 #include "BulletWorld.h"
-#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 
 BulletWorld::BulletWorld()
 : mCollisionConfiguration( NULL )
@@ -42,6 +41,14 @@ void BulletWorld::update()
 		if( mDebugDrawActive[ i ] != mDebugDrawer->getDrawEnable( (CinderBulletDebugDrawer::DrawType)i ))
 			mDebugDrawer->setDrawEnable( (CinderBulletDebugDrawer::DrawType)i, mDebugDrawActive[ i ] );
 	}
+
+	for( int i = 0; i < SOFT_DEBUG_DRAW_NUM; ++i )
+	{
+		if( mSoftDebugDrawActive[ i ] != mDebugDrawer->getSoftDrawEnable( (CinderBulletDebugDrawer::SoftDrawType)i ))
+			mDebugDrawer->setSoftDrawEnable( (CinderBulletDebugDrawer::SoftDrawType)i, mSoftDebugDrawActive[ i ] );
+	}
+
+	mSoftRigidDynamicsWorld->setDrawFlags( mDebugDrawer->getSoftDebugMode() );
 
 // 	// simple dynamics world doesn't handle fixed-time-stepping
 // 	double time = ci::app::App::get()->getElapsedSeconds();
@@ -126,13 +133,13 @@ void BulletWorld::initPhysics()
 
 	// Setup a big ground box
 	{
-		btCollisionShape *groundShape = new btBoxShape( btVector3( btScalar( 200. ), btScalar( 10. ), btScalar( 200. )));
-
-		mCollisionShapes.push_back( groundShape );
-		btTransform groundTransform;
-		groundTransform.setIdentity();
-		groundTransform.setOrigin( btVector3( 0, -10, 0 ));
-		createRigidBody( mSoftRigidDynamicsWorld, btScalar( 0 ), groundTransform, groundShape );
+// 		btCollisionShape *groundShape = new btBoxShape( btVector3( btScalar( 200. ), btScalar( 10. ), btScalar( 200. )));
+// 
+// 		mCollisionShapes.push_back( groundShape );
+// 		btTransform groundTransform;
+// 		groundTransform.setIdentity();
+// 		groundTransform.setOrigin( btVector3( 0, -10, 0 ));
+// 		createRigidBody( mSoftRigidDynamicsWorld, btScalar( 0 ), groundTransform, groundShape );
 	}
 }
 
@@ -194,7 +201,7 @@ AssimpModel *BulletWorld::spawnAssimpModel( const ci::Vec3f &pos )
 
 	posConv = ci::Vec3f( 0, 10, 0 );
 
-	AssimpModel *assimpModel = new AssimpModel( mSoftRigidDynamicsWorld, &mSoftBodyWorldInfo, posConv, ci::app::App::get()->getAssetPath( "madar_0318.dae" ), ci::app::App::get()->getAssetPath( "madar_0318.xml" ) );
+	AssimpModel *assimpModel = new AssimpModel( mSoftRigidDynamicsWorld, &mSoftBodyWorldInfo, posConv, ci::app::App::get()->getAssetPath( "madar_0406.dae" ), ci::app::App::get()->getAssetPath( "madar_0406.xml" ) );
 	mAssimpModels.push_back( assimpModel );
 
 	return assimpModel;
@@ -213,11 +220,6 @@ void BulletWorld::updateAssimpModel( AssimpModel *assimpModel, const ci::Vec3f p
 	assimpModel->update( posConv, dir, norm );
 }
 
-void BulletWorld::animateAssimpModel( AssimpModel* assimpModel, AssimpModel::AnimateType animateType )
-{
-	assimpModel->animate( animateType );
-}
-
 void BulletWorld::setupParams()
 {
 	mParams = mndl::params::PInterfaceGl( "Bullet", ci::Vec2i( 250, 350 ), ci::Vec2i( 300, 50 ) );
@@ -227,7 +229,7 @@ void BulletWorld::setupParams()
 	mParams.addPersistentParam( "Gravity", &mGravity, ci::Vec3f( 0.0f, -9.81f, 0.0f ) );
 
 	mParams.addPersistentParam( "SimulateOne"   , &mSimulateOne   , false );
-	mParams.addPersistentParam( "SimulateAlways", &mSimulateAlways, false );
+	mParams.addPersistentParam( "SimulateAlways", &mSimulateAlways, true  );
 
 	mParams.addText( "DebugDraw" );
 	const char *text[DEBUG_DRAW_NUM] = { "DrawWireframe", "DrawAabb", "DrawFeaturesText", "DrawContactPoints", "NoDeactivation", "NoHelpText", "DrawText", "ProfileTimings", "EnableSatComparison", "DisableBulletLCP", "EnableCCD", "DrawConstraints", "DrawConstraintLimits", "FastWireframe", "DrawNormals", "DrawTransform" };
@@ -235,6 +237,14 @@ void BulletWorld::setupParams()
 	for( int i = 0; i < DEBUG_DRAW_NUM; ++i )
 	{
 		mParams.addPersistentParam( text[i], &mDebugDrawActive[i], mDebugDrawer->getDrawEnable( (CinderBulletDebugDrawer::DrawType)i ));
+	}
+
+	mParams.addText( "SoftDebugDraw" );
+	const char *softText[SOFT_DEBUG_DRAW_NUM] = { "Nodes", "Links", "Faces", "Tetras", "Normals", "Contacts", "Anchors", "Notes", "Clusters", "NodeTree", "FaceTree", "ClusterTree", "Joints" };
+
+	for( int i = 0; i < SOFT_DEBUG_DRAW_NUM; ++i )
+	{
+		mParams.addPersistentParam( softText[i], &mSoftDebugDrawActive[i], mDebugDrawer->getSoftDrawEnable( (CinderBulletDebugDrawer::SoftDrawType)i ));
 	}
 }
 

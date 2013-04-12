@@ -104,7 +104,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\madar_0318.xml">
+    <None Include="..\assets\madar_0406.xml">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\assets\madar_0406.dae">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

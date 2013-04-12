@@ -11,7 +11,10 @@
 typedef std::shared_ptr< class AssimpBone             > AssimpBoneRef;
 typedef std::shared_ptr< class AssimpJoint            > AssimpJointRef;
 typedef std::shared_ptr< class AssimpDisableCollision > AssimpDisableCollisionRef;
+typedef std::shared_ptr< class AssimpString           > AssimpStringRef;
 typedef std::shared_ptr< class AssimpHang             > AssimpHangRef;
+typedef std::shared_ptr< class AssimpAnimBone         > AssimpAnimBoneRef;
+typedef std::shared_ptr< class AssimpAnim             > AssimpAnimRef;
 
 class AssimpBone
 {
@@ -88,50 +91,92 @@ protected:
 	AssimpJoints mAssimpJoints;
 };
 
+class AssimpString
+{
+public:
+	AssimpString( const mndl::NodeRef& nodeHang, const AssimpBoneRef& assimpBonePos, const AssimpBoneRef& assimpBoneHolder );
+
+	const mndl::NodeRef&   getNodeHang() const;
+	const AssimpBoneRef&   getAssimpBonePos() const;
+	const AssimpBoneRef&   getAssimpBoneHolder() const;
+
+	void                   setRope( btSoftBody* rope );
+	btSoftBody*            getRope() const;
+
+protected:
+	mndl::NodeRef     mNodeHang;
+	AssimpBoneRef     mAssimpBonePos;
+	AssimpBoneRef     mAssimpBoneHolder;
+
+	btSoftBody*       mRope;
+};
+
 class AssimpHang
 {
 public:
-	enum PosType
-	{
-		PT_BEG,
-		PT_END
-	};
+	typedef std::vector< AssimpStringRef > AssimpStrings;
 
-	AssimpHang();
-	static PosType getTypeFromString( const std::string& type );
+	AssimpHang( float stickSize, const mndl::NodeRef& nodeFront, const mndl::NodeRef& nodeBack, const mndl::NodeRef& nodeLeft, const mndl::NodeRef& nodeRigth, const mndl::NodeRef& nodeCross );
 
-	float            mStringLength;
+	float         getStickSize() const;
+
+	mndl::NodeRef getNodeFront() const;
+	mndl::NodeRef getNodeBack() const;
+	mndl::NodeRef getNodeLeft() const;
+	mndl::NodeRef getNodeRight() const;
+	mndl::NodeRef getNodeCross() const;
+
+	void             setCompoundShape( btCompoundShape* shape );
+	btCompoundShape* getCompoundShape() const;
+	void             setRigidBody( btRigidBody* rigidBody );
+	btRigidBody*     getRigidBody() const;
+
+	void             addAssimpString( const AssimpStringRef& assimpString );
+	AssimpStrings&   getAssimpStrings();
+
+protected:
 	float            mStickSize;
 
-	AssimpBoneRef    mAssimpBoneFront;
-	PosType          mPosTypeFront;
-	AssimpBoneRef    mAssimpBoneBack;
-	PosType          mPosTypeBack;
-	AssimpBoneRef    mAssimpBoneLeft;
-	PosType          mPosTypeLeft;
-	AssimpBoneRef    mAssimpBoneRight;
-	PosType          mPosTypeRight;
-	AssimpBoneRef    mAssimpBoneCenter;
-	PosType          mPosTypeCenter;
+	mndl::NodeRef    mNodeFront;
+	mndl::NodeRef    mNodeBack;
+	mndl::NodeRef    mNodeLeft;
+	mndl::NodeRef    mNodeRight;
+	mndl::NodeRef    mNodeCross;
 
-	ci::Vec3f        mPosFront;
-	ci::Vec3f        mPosBack;
-	ci::Vec3f        mPosLeft;
-	ci::Vec3f        mPosRight;
-	ci::Vec3f        mPosCenter;
-
-	ci::Vec3f        mPosCross;
+	AssimpStrings    mAssimpStrings;
 
 	btCompoundShape* mCompoundShape;
-	btBoxShape*      mShapeFrontBack;
-	btBoxShape*      mShapeLeftRight;
 	btRigidBody*     mRigidBody;
+};
 
-	btSoftBody*      mRopeFront;
-	btSoftBody*      mRopeBack;
-	btSoftBody*      mRopeLeft;
-	btSoftBody*      mRopeRight;
-	btSoftBody*      mRopeCenter;
+class AssimpAnimBone
+{
+public:
+	AssimpAnimBone( const AssimpBoneRef& assimpBone, const ci::Vec3f& impulse );
+
+	AssimpBoneRef getAssimpBone() const;
+	ci::Vec3f     getImpulse() const;
+
+protected:
+	AssimpBoneRef mAssimpBone;
+	ci::Vec3f     mImpulse;
+};
+
+class AssimpAnim
+{
+public:
+	typedef std::vector< AssimpAnimBoneRef > AssimpAnimBones;
+
+	AssimpAnim( const std::string& name );
+
+	const std::string& getName() const;
+
+	void             addAssimpAnimBone( const AssimpAnimBoneRef& assimpAnimBone );
+	AssimpAnimBones& getAssimpAnimBones();
+
+protected:
+	std::string     mName;
+	AssimpAnimBones mAssimpAnimBones;
 };
 
 class AssimpModel
@@ -139,12 +184,7 @@ class AssimpModel
 	typedef std::vector< AssimpBoneRef             > AssimpBones;
 	typedef std::vector< AssimpJointRef            > AssimpJoints;
 	typedef std::vector< AssimpDisableCollisionRef > AssimpDisableCollisions;
-
-public:
-	enum AnimateType
-	{
-		ANIMATE_SIGN
-	};
+	typedef std::vector< AssimpAnimRef             > AssimpAnims;
 
 public:
 	AssimpModel( btDynamicsWorld *ownerWorld, btSoftBodyWorldInfo *softBodyWorldInfo, const ci::Vec3f &worldOffset, const boost::filesystem::path &fileModel, const boost::filesystem::path &fileData );
@@ -155,7 +195,9 @@ public:
 
 	static void setupParams();
 
-	void animate( AnimateType animateType );
+	int  getNumAnimate();
+	std::vector< std::string > getAnimateNames();
+	void doAnimate( int pos );
 
 protected:
 	void loadData( const boost::filesystem::path& fileData );
@@ -164,6 +206,9 @@ protected:
 	void loadDataDisableCollisions( const ci::XmlTree& xmlNode );
 	void loadDataDisableCollision( const ci::XmlTree& xmlNode );
 	void loadDataHang( const ci::XmlTree& xmlNode );
+	void loadDataString( const ci::XmlTree& xmlNode );
+	void loadDataAnims( const ci::XmlTree& xmlNode );
+	void loadDataAnim( const ci::XmlTree& xmlNode );
 
 	AssimpBoneRef  getAssimpBone( const std::string& name );
 	AssimpJointRef getAssimpJoint( const std::string& nameA, const std::string& nameB );
@@ -172,6 +217,8 @@ protected:
 
 	btRigidBody *localCreateRigidBody( btScalar mass, const btTransform &startTransform, btCollisionShape *shape );
 	btSoftBody  *localCreateRope( const ci::Vec3f &from, const ci::Vec3f &to, btRigidBody *rigidBodyFrom, btRigidBody *rigidBodyTo );
+	void         setShowDebugDrawRigidBody( bool showDebugDrawRigidBody );
+	bool         getShowDebugDrawRigidBody() const;
 
 	void buildBones();
 	void buildBone( const AssimpBoneRef& assimpBone );
@@ -184,9 +231,9 @@ protected:
 	void updateBone( const AssimpBoneRef& assimpBone );
 	void updateHang( const ci::Vec3f pos, const ci::Vec3f dir, const ci::Vec3f norm );
 
-	void animateSign();
-
 	void  printNodes();
+	bool isEqual( const ci::Vec3f& vec1, const ci::Vec3f& vec2 ) const;
+
 protected:
 	btDynamicsWorld         *mOwnerWorld;
 	btSoftBodyWorldInfo     *mSoftBodyWorldInfo;
@@ -235,7 +282,8 @@ protected:
 
 	static bool        mDrawSkin;
 	static bool        mEnableWireframe;
-	static float       mForce;
+
+	static bool        mShowDebugDrawRigidBody;
 
 // 	static float       mTau;
 // 	static float       mDamping;
@@ -247,6 +295,7 @@ protected:
 	AssimpHangRef           mAssimpHang;
 	float                   mMinBoneLength;
 	float                   mCapsuleRadius;
+	AssimpAnims             mAssimpAnims;
 };
 
 #endif // __AssimpModel_H__

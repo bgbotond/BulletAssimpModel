@@ -2,6 +2,7 @@
 #define __CinderBulletDebugDrawer_H__
 
 #include "btBulletCollisionCommon.h"
+#include "BulletSoftBody/btSoftBodyHelpers.h"
 
 class CinderBulletDebugDrawer : public btIDebugDraw
 {
@@ -26,6 +27,23 @@ public:
 		DT_DrawTransform        = 15,
 	};
 
+	enum SoftDrawType
+	{
+		SDT_Nodes               =  0,
+		SDT_Links               =  1,
+		SDT_Faces               =  2,
+		SDT_Tetras              =  3,
+		SDT_Normals             =  4,
+		SDT_Contacts            =  5,
+		SDT_Anchors             =  6,
+		SDT_Notes               =  7,
+		SDT_Clusters            =  8,
+		SDT_NodeTree            =  9,
+		SDT_FaceTree            = 10,
+		SDT_ClusterTree         = 11,
+		SDT_Joints              = 12,
+	};
+
 	CinderBulletDebugDrawer();
 	~CinderBulletDebugDrawer();
 
@@ -39,13 +57,20 @@ public:
 	virtual void setDebugMode( int debugMode );
 	virtual int  getDebugMode() const;
 
+	virtual void setSoftDebugMode( int softDebugMode );
+	virtual int  getSoftDebugMode() const;
+
 	virtual void drawTransform( const btTransform &transform, btScalar orthoLen );
 
 	void setDrawEnable( DrawType drawType, bool enable );
 	bool getDrawEnable( DrawType drawType              ) const;
 
+	void setSoftDrawEnable( SoftDrawType softDrawType, bool enable );
+	bool getSoftDrawEnable( SoftDrawType softDrawType              ) const;
+
 private:
 	unsigned int mDebugModes;
+	unsigned int mSoftDebugModes;
 	bool         mDrawTransform;
 };
 
