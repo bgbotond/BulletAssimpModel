@@ -112,6 +112,7 @@
     <ClCompile Include="..\..\..\cinder_0.8.5\blocks\MndlKit\src\mndlkit\params\PParams.cpp" />
     <ClCompile Include="..\src\AssimpModel.cpp" />
     <ClCompile Include="..\src\BulletConstraint.cpp" />
+    <ClCompile Include="..\src\BulletParameter.cpp" />
     <ClCompile Include="..\src\BulletWorld.cpp" />
     <ClCompile Include="..\src\BulletAssimpModelApp.cpp" />
     <ClCompile Include="..\src\CinderBulletDebugDrawer.cpp" />
@@ -125,6 +126,7 @@
     <ClInclude Include="..\..\..\cinder_0.8.5\blocks\MndlKit\src\mndlkit\params\PParams.h" />
     <ClInclude Include="..\include\AssimpModel.h" />
     <ClInclude Include="..\include\BulletConstraint.h" />
+    <ClInclude Include="..\include\BulletParameter.h" />
     <ClInclude Include="..\include\BulletWorld.h" />
     <ClInclude Include="..\include\CinderBullet.h" />
     <ClInclude Include="..\include\CinderBulletDebugDrawer.h" />

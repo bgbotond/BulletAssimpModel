@@ -6,36 +6,6 @@
 CinderBulletDebugDrawer::CinderBulletDebugDrawer()
 : mDebugModes( 0 )
 {
-	setDrawEnable( DT_DrawWireframe       , true  );
-	setDrawEnable( DT_DrawAabb            , false );
-	setDrawEnable( DT_DrawFeaturesText    , false );
-	setDrawEnable( DT_DrawContactPoints   , false );
-	setDrawEnable( DT_NoDeactivation      , true  );
-	setDrawEnable( DT_NoHelpText          , false );
-	setDrawEnable( DT_DrawText            , false );
-	setDrawEnable( DT_ProfileTimings      , false );
-	setDrawEnable( DT_EnableSatComparison , false );
-	setDrawEnable( DT_DisableBulletLCP    , false );
-	setDrawEnable( DT_EnableCCD           , false );
-	setDrawEnable( DT_DrawConstraints     , false );
-	setDrawEnable( DT_DrawConstraintLimits, false );
-	setDrawEnable( DT_FastWireframe       , false );
-	setDrawEnable( DT_DrawNormals         , false );
-	setDrawEnable( DT_DrawTransform       , false );
-
-	setSoftDrawEnable( SDT_Nodes       , false );
-	setSoftDrawEnable( SDT_Links       , true  );
-	setSoftDrawEnable( SDT_Faces       , false );
-	setSoftDrawEnable( SDT_Tetras      , false );
-	setSoftDrawEnable( SDT_Normals     , false );
-	setSoftDrawEnable( SDT_Contacts    , false );
-	setSoftDrawEnable( SDT_Anchors     , false );
-	setSoftDrawEnable( SDT_Notes       , false );
-	setSoftDrawEnable( SDT_Clusters    , false );
-	setSoftDrawEnable( SDT_NodeTree    , false );
-	setSoftDrawEnable( SDT_FaceTree    , false );
-	setSoftDrawEnable( SDT_ClusterTree , false );
-	setSoftDrawEnable( SDT_Joints      , false );
 }
 
 CinderBulletDebugDrawer::~CinderBulletDebugDrawer()
@@ -105,14 +75,9 @@ int CinderBulletDebugDrawer::getDebugMode() const
 	return mDebugModes;
 }
 
-void CinderBulletDebugDrawer::setSoftDebugMode( int softDebugMode )
+void CinderBulletDebugDrawer::setDrawTransform( bool drawTransform )
 {
-	mSoftDebugModes = softDebugMode;
-}
-
-int CinderBulletDebugDrawer::getSoftDebugMode() const
-{
-	return mSoftDebugModes;
+	mDrawTransform = drawTransform;
 }
 
 void CinderBulletDebugDrawer::drawTransform( const btTransform &transform, btScalar orthoLen )
@@ -123,110 +88,3 @@ void CinderBulletDebugDrawer::drawTransform( const btTransform &transform, btSca
 	btIDebugDraw::drawTransform( transform, orthoLen );
 }
 
-void CinderBulletDebugDrawer::setDrawEnable( DrawType drawType, bool enable )
-{
-	btIDebugDraw::DebugDrawModes debugModel = btIDebugDraw::DBG_DrawWireframe;
-
-	switch( drawType )
-	{
-	case DT_DrawWireframe        : debugModel = btIDebugDraw::DBG_DrawWireframe;        break;
-	case DT_DrawAabb             : debugModel = btIDebugDraw::DBG_DrawAabb;             break;
-	case DT_DrawFeaturesText     : debugModel = btIDebugDraw::DBG_DrawFeaturesText;     break;
-	case DT_DrawContactPoints    : debugModel = btIDebugDraw::DBG_DrawContactPoints;    break;
-	case DT_NoDeactivation       : debugModel = btIDebugDraw::DBG_NoDeactivation;       break;
-	case DT_NoHelpText           : debugModel = btIDebugDraw::DBG_NoHelpText;           break;
-	case DT_DrawText             : debugModel = btIDebugDraw::DBG_DrawText;             break;
-	case DT_ProfileTimings       : debugModel = btIDebugDraw::DBG_ProfileTimings;       break;
-	case DT_EnableSatComparison  : debugModel = btIDebugDraw::DBG_EnableSatComparison;  break;
-	case DT_DisableBulletLCP     : debugModel = btIDebugDraw::DBG_DisableBulletLCP;     break;
-	case DT_EnableCCD            : debugModel = btIDebugDraw::DBG_EnableCCD;            break;
-	case DT_DrawConstraints      : debugModel = btIDebugDraw::DBG_DrawConstraints;      break;
-	case DT_DrawConstraintLimits : debugModel = btIDebugDraw::DBG_DrawConstraintLimits; break;
-	case DT_FastWireframe        : debugModel = btIDebugDraw::DBG_FastWireframe;        break;
-	case DT_DrawNormals          : debugModel = btIDebugDraw::DBG_DrawNormals;          break;
-	case DT_DrawTransform        : mDrawTransform = enable; return;
-	}
-
-	if( enable )
-		mDebugModes |= debugModel;
-	else
-		mDebugModes &= ~debugModel;
-}
-
-bool CinderBulletDebugDrawer::getDrawEnable( DrawType drawType ) const
-{
-	btIDebugDraw::DebugDrawModes debugModel = btIDebugDraw::DBG_DrawWireframe;
-
-	switch( drawType )
-	{
-	case DT_DrawWireframe        : debugModel = btIDebugDraw::DBG_DrawWireframe;        break;
-	case DT_DrawAabb             : debugModel = btIDebugDraw::DBG_DrawAabb;             break;
-	case DT_DrawFeaturesText     : debugModel = btIDebugDraw::DBG_DrawFeaturesText;     break;
-	case DT_DrawContactPoints    : debugModel = btIDebugDraw::DBG_DrawContactPoints;    break;
-	case DT_NoDeactivation       : debugModel = btIDebugDraw::DBG_NoDeactivation;       break;
-	case DT_NoHelpText           : debugModel = btIDebugDraw::DBG_NoHelpText;           break;
-	case DT_DrawText             : debugModel = btIDebugDraw::DBG_DrawText;             break;
-	case DT_ProfileTimings       : debugModel = btIDebugDraw::DBG_ProfileTimings;       break;
-	case DT_EnableSatComparison  : debugModel = btIDebugDraw::DBG_EnableSatComparison;  break;
-	case DT_DisableBulletLCP     : debugModel = btIDebugDraw::DBG_DisableBulletLCP;     break;
-	case DT_EnableCCD            : debugModel = btIDebugDraw::DBG_EnableCCD;            break;
-	case DT_DrawConstraints      : debugModel = btIDebugDraw::DBG_DrawConstraints;      break;
-	case DT_DrawConstraintLimits : debugModel = btIDebugDraw::DBG_DrawConstraintLimits; break;
-	case DT_FastWireframe        : debugModel = btIDebugDraw::DBG_FastWireframe;        break;
-	case DT_DrawNormals          : debugModel = btIDebugDraw::DBG_DrawNormals;          break;
-	case DT_DrawTransform        : return mDrawTransform;
-	}
-
-	return( mDebugModes & debugModel ) != 0;
-}
-
-void CinderBulletDebugDrawer::setSoftDrawEnable( SoftDrawType softDrawType, bool enable )
-{
-	fDrawFlags::_ softDebugModel = fDrawFlags::Nodes;
-
-	switch( softDrawType )
-	{
-	case SDT_Nodes        : softDebugModel = fDrawFlags::Nodes;         break;
-	case SDT_Links        : softDebugModel = fDrawFlags::Links;         break;
-	case SDT_Faces        : softDebugModel = fDrawFlags::Faces;         break;
-	case SDT_Tetras       : softDebugModel = fDrawFlags::Tetras;        break;
-	case SDT_Normals      : softDebugModel = fDrawFlags::Normals;       break;
-	case SDT_Contacts     : softDebugModel = fDrawFlags::Contacts;      break;
-	case SDT_Anchors      : softDebugModel = fDrawFlags::Anchors;       break;
-	case SDT_Notes        : softDebugModel = fDrawFlags::Notes;         break;
-	case SDT_Clusters     : softDebugModel = fDrawFlags::Clusters;      break;
-	case SDT_NodeTree     : softDebugModel = fDrawFlags::NodeTree;      break;
-	case SDT_FaceTree     : softDebugModel = fDrawFlags::FaceTree;      break;
-	case SDT_ClusterTree  : softDebugModel = fDrawFlags::ClusterTree;   break;
-	case SDT_Joints       : softDebugModel = fDrawFlags::Joints;        break;
-	}
-
-	if( enable )
-		mSoftDebugModes |= softDebugModel;
-	else
-		mSoftDebugModes &= ~softDebugModel;
-}
-
-bool CinderBulletDebugDrawer::getSoftDrawEnable( SoftDrawType softDrawType ) const
-{
-	fDrawFlags::_ softDebugModel = fDrawFlags::Nodes;
-
-	switch( softDrawType )
-	{
-	case SDT_Nodes        : softDebugModel = fDrawFlags::Nodes;         break;
-	case SDT_Links        : softDebugModel = fDrawFlags::Links;         break;
-	case SDT_Faces        : softDebugModel = fDrawFlags::Faces;         break;
-	case SDT_Tetras       : softDebugModel = fDrawFlags::Tetras;        break;
-	case SDT_Normals      : softDebugModel = fDrawFlags::Normals;       break;
-	case SDT_Contacts     : softDebugModel = fDrawFlags::Contacts;      break;
-	case SDT_Anchors      : softDebugModel = fDrawFlags::Anchors;       break;
-	case SDT_Notes        : softDebugModel = fDrawFlags::Notes;         break;
-	case SDT_Clusters     : softDebugModel = fDrawFlags::Clusters;      break;
-	case SDT_NodeTree     : softDebugModel = fDrawFlags::NodeTree;      break;
-	case SDT_FaceTree     : softDebugModel = fDrawFlags::FaceTree;      break;
-	case SDT_ClusterTree  : softDebugModel = fDrawFlags::ClusterTree;   break;
-	case SDT_Joints       : softDebugModel = fDrawFlags::Joints;        break;
-	}
-
-	return( mSoftDebugModes & softDebugModel ) != 0;
-}

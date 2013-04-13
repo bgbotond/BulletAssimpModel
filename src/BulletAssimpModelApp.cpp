@@ -13,8 +13,11 @@ using namespace ci::app;
 using namespace std;
 using namespace LeapSdk;
 
+
 class BulletAssimpModelApp : public AppNative
 {
+	typedef std::vector< int > Gestures;
+
 public:
 	void setup();
 	void mouseDown( MouseEvent event );
@@ -28,6 +31,8 @@ public:
 
 protected:
 	void setupParams();
+
+	int  getActHand( Frame& frame, int actHand );
 
 protected:
 	BulletWorld mBulletWorld;
@@ -45,7 +50,7 @@ protected:
 	Vec3f     mCameraCenterOfInterestPoint;
 	static const int mStepKey = 3;
 
-	// ragdoll
+	// assimp model
 	Vec3f     mPosition;
 	Vec3f     mDirection;
 	Vec3f     mNormal;
@@ -56,6 +61,7 @@ protected:
 	LeapSdk::DeviceRef      mLeap;
 	void                    onFrame( LeapSdk::Frame frame );
 	int                     mActHand;
+	Gestures                mActGestures;
 	Vec3f                   mHandPos;
 	Vec3f                   mHandDir;
 	Vec3f                   mHandNorm;
@@ -98,12 +104,14 @@ void BulletAssimpModelApp::setup()
 
 	mBulletWorld.setup();
 
-	AssimpModel assimpModel();
+//	AssimpModel assimpModel();
 
 	// Start device
 	mLeap = Device::create();
 	mCallbackId = mLeap->addCallback( &BulletAssimpModelApp::onFrame, this );
+	mLeap->enableGesture( Leap::Gesture::TYPE_KEY_TAP );
 	mActHand = -1;
+	mActGestures.clear();
 }
 
 // Called when Leap frame data is ready
@@ -111,9 +119,47 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 {
 	mHands = frame.getHands();
 
+	mActHand = getActHand( frame, mActHand );
+	mActGestures.clear();
+
+	if( mActHand != -1 )
+	{
+		const vector<Leap::Gesture>& gestures = frame.getGestures();
+		for( vector<Leap::Gesture>::const_iterator iter = gestures.begin(); iter != gestures.end(); ++iter )
+		{
+			Gesture::Type type = iter->type();
+
+			if( type == Leap::Gesture::TYPE_KEY_TAP )
+			{
+// 				Gesture::State state = iter->state();
+// 
+// 				if( state == Gesture::State::STATE_START )
+				{
+					const Leap::KeyTapGesture& gesture = (Leap::KeyTapGesture)*iter;
+					int actFinger = 0;
+					const LeapSdk::FingerMap& fingers = mHands[ mActHand ].getFingers();
+					for( FingerMap::const_iterator fingerIter = fingers.begin(); fingerIter != fingers.end(); ++fingerIter )
+					{
+						const Finger& finger = fingerIter->second;
+
+						if( gesture.pointable().id() == finger.getId() )
+						{
+							mActGestures.push_back( actFinger - 1 );
+						}
+
+						++actFinger;
+					}
+				}
+			}
+		}
+	}
+}
+
+int BulletAssimpModelApp::getActHand( Frame& frame, int actHand )
+{
 	if( mHands.size())
 	{
-		if( mActHand == -1 )
+		if( actHand == -1 )
 		{
 			for( HandMap::const_iterator it = mHands.begin(); it != mHands.end(); ++it )
 			{
@@ -121,8 +167,7 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 
 				if( hand.getFingers().size() == 5 )
 				{
-					mActHand = it->first;
-					break;
+					return it->first;
 				}
 			}
 		}
@@ -132,42 +177,61 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 
 			if( it != mHands.end())
 			{
-				mActHand = mHands.begin()->first;
+				return mHands.begin()->first;
 			}
 		}
 	}
-	else
-	{
-		mActHand = -1;
-	}
+
+	return -1;
 }
 
 void BulletAssimpModelApp::setupParams()
 {
 	mndl::params::PInterfaceGl::load( "params.xml" );
 
-	mParams = mndl::params::PInterfaceGl( "Parameters", Vec2i( 230, 300 ), Vec2i( 50, 50 ) );
+	mParams = mndl::params::PInterfaceGl( "Parameters", Vec2i( 230, 550 ), Vec2i( 50, 50 ) );
 	mParams.addPersistentSizeAndPosition();
 
 	mFps = 0;
 	mParams.addParam( "Fps", &mFps, "", true );
 	mParams.addSeparator();
 	mParams.addText( "Camera" );
-	mParams.addPersistentParam( "Lock camera", &mCameraLock, true );
+	mParams.addPersistentParam( "Lock camera (l)", &mCameraLock, false );
 	mParams.addPersistentParam( "Fov", &mCameraFov, 45.f, "min=20 max=180 step=.1" );
-	mParams.addPersistentParam( "Eye", &mCameraEyePoint, Vec3f( 0.0f, 15.0f, -40.0f ));
-	mParams.addPersistentParam( "Center of Interest", &mCameraCenterOfInterestPoint, Vec3f( 0.0f, 15.0f, 0.0f ));
-	mParams.addText( "Ragdoll" );
-	mParams.addPersistentParam( "Position" , &mPosition , Vec3f( 0.0f, 10.0f, 0.0f ));
+	mParams.addPersistentParam( "Eye", &mCameraEyePoint, Vec3f( 0.0f, 10.0f, -40.0f ));
+	mParams.addPersistentParam( "Center of Interest", &mCameraCenterOfInterestPoint, Vec3f( 0.0f, 10.0f, 0.0f ));
+	mParams.addText( "Assimp test" );
+	mPosition = Vec3f( 0.0f, 10.0f, 0.0f );
+//	mParams.addPersistentParam( "Position" , &mPosition , Vec3f( 0.0f, 10.0f, 0.0f ));
 	mParams.addPersistentParam( "Direction", &mDirection, Vec3f( 0.0f,  0.0f, -1.0f ));
 	mParams.addPersistentParam( "Normal"   , &mNormal   , Vec3f( 0.0f, -1.0f, 0.0f ));
-	mParams.addButton( "Spawn", [ this ]()
+
+	mParams.addButton( "Spawn (k)", [ this ]()
 								{
 									if( mAssimpModelDebug )
 										mBulletWorld.removeAssimpModel( mAssimpModelDebug );
-									mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition * 10 );
+									mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition ); //* 10 );
 								} );
 
+	mParams.addButton( "Sing (0)", [ this ]()
+								{
+									if( mAssimpModelDebug )
+										mAssimpModelDebug->doAnimate( 0 );
+								} );
+
+	mParams.addButton( "Fly (1)", [ this ]()
+								{
+									if( mAssimpModelDebug )
+										mAssimpModelDebug->doAnimate( 1 );
+								} );
+
+	mParams.addButton( "Wag (2)", [ this ]()
+								{
+									if( mAssimpModelDebug )
+										mAssimpModelDebug->doAnimate( 2 );
+								} );
+
+	mParams.addText( "Leap" );
 	mParams.addPersistentParam( "Hand pos" , &mHandPos , Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "Hand dir" , &mHandDir , Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "Hand norm", &mHandNorm, Vec3f( -1, -1, -1 ), "", true );
@@ -238,7 +302,7 @@ void BulletAssimpModelApp::keyDown( KeyEvent event )
 		{
 			if( mAssimpModelDebug )
 				mBulletWorld.removeAssimpModel( mAssimpModelDebug );
-			mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition * 10 );
+			mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition ); //* 10 );
 		}
 		break;
 	case KeyEvent::KEY_LEFT:
@@ -363,7 +427,16 @@ void BulletAssimpModelApp::update()
 	}
 
 	if( mAssimpModelDebug )
-		mBulletWorld.updateAssimpModel( mAssimpModelDebug, mPosition * 10, mDirection.normalized(), mNormal.normalized() );
+		mBulletWorld.updateAssimpModel( mAssimpModelDebug, mPosition, mDirection.normalized(), mNormal.normalized() );
+
+	for( Gestures::const_iterator it = mActGestures.begin(); it != mActGestures.end(); ++it )
+	{
+		int animPos = *it;
+		if( mAssimpModelDebug )
+			mAssimpModelDebug->doAnimate( animPos );
+		if( mAssimpModel )
+			mAssimpModel->doAnimate( animPos );
+	}
 }
 
 void BulletAssimpModelApp::draw()
@@ -380,14 +453,28 @@ void BulletAssimpModelApp::draw()
 	mBulletWorld.draw();
 	mndl::params::PInterfaceGl::draw();
 
-	if( mAssimpModel && mDrawVectors )
+	if( mDrawVectors && ( mAssimpModel || mAssimpModelDebug ) )
 	{
 		Quatf rot = Quatf( Vec3f::yAxis(), M_PI / 2.0f );
 
+		Vec3f handDir;
+		Vec3f handNorm;
+
+		if( mAssimpModel )
+		{
+			handDir  = rot * mHandDir;
+			handNorm = rot * mHandNorm;
+		}
+		else if( mAssimpModelDebug )
+		{
+			handDir  = rot * mDirection;
+			handNorm = rot * mNormal;
+		}
+
 		glColor4ub( 255, 0, 0, 255 );
-		gl::drawVector( Vec3f::zero(), rot * mHandDir * 3, 1, .5 );
+		gl::drawVector( Vec3f::zero(), handDir.normalized(), .5, .2 );
 		glColor4ub( 0, 255, 0, 255 );
-		gl::drawVector( Vec3f::zero(), rot * mHandNorm * 3, 1, .5 );
+		gl::drawVector( Vec3f::zero(), handNorm.normalized(), .5, .2 );
 	}
 }
 

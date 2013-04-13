@@ -6,17 +6,12 @@
 #include "BulletSoftBody/btSoftBody.h"
 #include "CinderBulletDebugDrawer.h"
 #include "BulletConstraint.h"
+#include "BulletParameter.h"
 #include "AssimpModel.h"
 #include "mndlkit/params/PParams.h"
 #include "cinder/app/MouseEvent.h"
 #include "cinder/Camera.h"
-
-enum collisionTypes
-{
-	CT_NOTHING = 0,      // Collide with nothing
-	CT_BONE    = 1 << 1, // Collide with bone
-	CT_GROUND  = 2 << 1, // Collide with ground
-};
+#include "cinder/Vector.h"
 
 class BulletWorld
 {
@@ -41,13 +36,20 @@ public:
 	void updateAssimpModel( AssimpModel *assimpModel, const ci::Vec3f pos, const ci::Vec3f dir, const ci::Vec3f norm );
 
 protected:
-	btRigidBody *createRigidBody( btDynamicsWorld *world, btScalar mass, const btTransform &startTransform, btCollisionShape *shape );
+	btRigidBody*           createRigidBody( btScalar mass, const btTransform &startTransform, btCollisionShape *shape );
+	btSoftBody*            createRope( const ci::Vec3f& from, const ci::Vec3f& to, btRigidBody* rigidBodyFrom, btRigidBody* rigidBodyTo );
+	btConeTwistConstraint* createConstraint( btRigidBody& rigidBodyA, btRigidBody& rigidBodyB, const btTransform& localA, const btTransform& localB );
+
+	void destroyRigidBody( btRigidBody* body );
+	void destroyRope( btSoftBody* rope );
+	void destroyConstraint( btConeTwistConstraint* constraint );
 
 	bool checkIntersects( const ci::Ray &ray, float farClip, BulletConstraint *constraint );
 	void addConstraint( const BulletConstraint &constraint, float clamping, float tau );
 	void removeConstraint( const BulletConstraint &constraint );
 
-	void setupParams();
+	void setShowDebugDrawRigidBody( bool showDebugDrawRigidBody );
+	bool getShowDebugDrawRigidBody() const;
 
 protected:
 
@@ -62,23 +64,18 @@ protected:
 
 	btAlignedObjectArray< btCollisionShape* >  mCollisionShapes;
 
-	CinderBulletDebugDrawer                   *mDebugDrawer;
+	std::vector< btRigidBody* >                mRigidBodies;
 
-	ci::Vec3f                                  mGravity;
+	CinderBulletDebugDrawer                   *mDebugDrawer;
+	BulletParameter*                           mBulletParameter;
+	bool                                       mShowDebugDrawRigidBody;
 
 	double                                     mTime;
-	mndl::params::PInterfaceGl                 mParams;
-	static const int                           DEBUG_DRAW_NUM = 16;
-	bool                                       mDebugDrawActive[ DEBUG_DRAW_NUM ];
-
-	static const int                           SOFT_DEBUG_DRAW_NUM = 13;
-	bool                                       mSoftDebugDrawActive[ SOFT_DEBUG_DRAW_NUM ];
 
 	BulletConstraint                           mBulletConstraint;
 	bool                                       mDragging;
 
-	bool mSimulateOne;
-	bool mSimulateAlways;
+	friend class AssimpModel;
 };
 
 #endif // __BulletWorld_H__

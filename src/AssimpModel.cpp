@@ -9,66 +9,12 @@
 #include "BulletSoftBody/btSoftBodyHelpers.h"
 #include "BulletWorld.h"
 
-#ifndef CONSTRAINT_DEBUG_SIZE
-#define CONSTRAINT_DEBUG_SIZE 0.5f
-#endif
-
 using namespace ci;
 using namespace mndl;
 using namespace mndl::assimp;
 
-mndl::params::PInterfaceGl        AssimpModel::mParamsBird;
-
-float                             AssimpModel::mLinearDamping             = 0.85f;
-float                             AssimpModel::mAngularDamping            = 0.85f;
-float                             AssimpModel::mDeactivationTime          = 0.8f;
-float                             AssimpModel::mLinearSleepingThresholds  = 1.6f;
-float                             AssimpModel::mAngularSleepingThresholds = 2.5f;
-
-float                             AssimpModel::mDamping = 0.01f;
-float                             AssimpModel::mStopCMF = 0.85f;
-float                             AssimpModel::mStopERP = 0.65f;
-// float                             AssimpModel::mLinCFM  = 0.0f;
-// float                             AssimpModel::mLinERP  = 0.7f;
-// float                             AssimpModel::mAngCFM  = 0.0f;
-
-
-mndl::params::PInterfaceGl        AssimpModel::mParamsRope;
-float                             AssimpModel::mRopeSize    = 5.0f;   // rope size
-int                               AssimpModel::mRopePart    = 16;     // rope part count
-float                             AssimpModel::mRopeMass    = 5.0f;   // mass
-float                             AssimpModel::mKVCF        = 1.0f;   // Velocities correction factor (Baumgarte)
-float                             AssimpModel::mKDP         = 0.0f;   // Damping coefficient [0,1]
-float                             AssimpModel::mKDG         = 0.0f;   // Drag coefficient [0,+inf]
-float                             AssimpModel::mKLF         = 0.0f;   // Lift coefficient [0,+inf]
-float                             AssimpModel::mKPR         = 0.0f;   // Pressure coefficient [-inf,+inf]
-float                             AssimpModel::mKVC         = 0.0f;   // Volume conversation coefficient [0,+inf]
-float                             AssimpModel::mKDF         = 0.2f;   // Dynamic friction coefficient [0,1]
-float                             AssimpModel::mKMT         = 0.0f;   // Pose matching coefficient [0,1]
-float                             AssimpModel::mKCHR        = 1.0f;   // Rigid contacts hardness [0,1]
-float                             AssimpModel::mKKHR        = 0.1f;   // Kinetic contacts hardness [0,1]
-float                             AssimpModel::mKSHR        = 1.0f;   // Soft contacts hardness [0,1]
-float                             AssimpModel::mKAHR        = 1.0f;   // Anchors hardness [0,1]
-float                             AssimpModel::mMaxvolume   = 1.0f;   // Maximum volume ratio for pose
-float                             AssimpModel::mTimescale   = 1.0f;   // Time scale
-int                               AssimpModel::mViterations = 0;      // Velocities solver iterations
-int                               AssimpModel::mPiterations = 15;     // Positions solver iterations
-int                               AssimpModel::mDiterations = 0;      // Drift solver iterations
-int                               AssimpModel::mCiterations = 4;      // Cluster solver iterations
-
-bool                              AssimpModel::mDrawSkin = true;
-bool                              AssimpModel::mEnableWireframe = false;
-
-bool                              AssimpModel::mShowDebugDrawRigidBody = false;
-
-// float                             AssimpModel::mTau          = 0.f01;
-// float                             AssimpModel::mDamping      = 1.0f;
-// float                             AssimpModel::mImpulseClamp = 0.0f;
-
-
-AssimpModel::AssimpModel( btDynamicsWorld* ownerWorld, btSoftBodyWorldInfo* softBodyWorldInfo, const Vec3f& worldOffset, const boost::filesystem::path& fileModel, const boost::filesystem::path& fileData )
-: mOwnerWorld( ownerWorld )
-, mSoftBodyWorldInfo( softBodyWorldInfo )
+AssimpModel::AssimpModel( BulletWorld* bulletWorld, const Vec3f& worldOffset, const boost::filesystem::path& fileModel, const boost::filesystem::path& fileData )
+: mBulletWorld( bulletWorld )
 , mMinBoneLength( 2.0f )
 , mCapsuleRadius( 0.1f )
 {
@@ -78,19 +24,18 @@ AssimpModel::AssimpModel( btDynamicsWorld* ownerWorld, btSoftBodyWorldInfo* soft
 
 	loadData( fileData );
 
-	Vec3f pos = Vec3f( 0, 15, 0 );
+//	Vec3f pos = Vec3f( 0, 15, 0 );
+	Vec3f pos = worldOffset;
 
 	AssimpNodeRef rootNode = mAssimpLoader.getRootNode();
 	rootNode->setPosition( pos );
 
-	printNodes();
+//	printNodes();
 
 	buildBones();
 	buildJoints();
 	buildDisableCollisions();
 	buildHang();
-
-//	setShowDebugDrawRigidBody( false );
 }
 
 void AssimpModel::loadData( const boost::filesystem::path& fileData )
@@ -360,12 +305,8 @@ void AssimpModel::buildBone( const AssimpBoneRef& assimpBone )
 	transform.setIdentity();
 	transform.setOrigin( CinderBullet::convert( pos + move ));
 	transform.setRotation( CinderBullet::convert( rot ) );
-	btRigidBody* rigidBody = localCreateRigidBody( assimpBone->getMass(), transform, shape );
+	btRigidBody* rigidBody = mBulletWorld->createRigidBody( assimpBone->getMass(), transform, shape );
 	assimpBone->setRigidBody( rigidBody );
-
-	rigidBody->setDamping( mLinearDamping, mAngularDamping );
-	rigidBody->setDeactivationTime( mDeactivationTime );
-	rigidBody->setSleepingThresholds( mLinearSleepingThresholds, mAngularSleepingThresholds );
 }
 
 void AssimpModel::buildJoints()
@@ -422,20 +363,10 @@ void AssimpModel::buildJoint( const AssimpJointRef& assimpJoint )
 
 	localA.setRotation( CinderBullet::convert( rotA ) ); localA.setOrigin( CinderBullet::convert( Vec3f( 0,  sign * sizeA / 2, 0 ) ) );
 	localB.setRotation( CinderBullet::convert( rotB ) ); localB.setOrigin( CinderBullet::convert( Vec3f( 0, -sizeB / 2, 0 ) ) );
-	coneC = new btConeTwistConstraint( *rigidBodyA, *rigidBodyB, localA, localB );
+	coneC = mBulletWorld->createConstraint( *rigidBodyA, *rigidBodyB, localA, localB );
 	coneC->setLimit( toRadians( assimpJoint->getSwing1() ), toRadians( assimpJoint->getSwing2() ), toRadians( assimpJoint->getTwist() ) );
-	coneC->setDbgDrawSize( CONSTRAINT_DEBUG_SIZE );
-	coneC->setDamping( mDamping );
-
-	for( int i = 0; i < 6; ++i )
-	{
-		coneC->setParam( BT_CONSTRAINT_STOP_CFM, mStopCMF, i );
-		coneC->setParam( BT_CONSTRAINT_STOP_ERP, mStopERP, i );
-	}
 
 	assimpJoint->setConstraint( coneC );
-
-	mOwnerWorld->addConstraint( coneC, true );
 }
 
 void AssimpModel::buildDisableCollisions()
@@ -496,7 +427,7 @@ void AssimpModel::buildHang()
 	pos = mAssimpHang->getNodeCross()->getDerivedPosition();
 	transform.setIdentity();
 	transform.setOrigin( CinderBullet::convert( pos ));
-	btRigidBody* rigidBody = localCreateRigidBody( mAssimpHang->getStickSize() * 4, transform, compoundShape );
+	btRigidBody* rigidBody = mBulletWorld->createRigidBody( mAssimpHang->getStickSize() * 4, transform, compoundShape );
 
 	rigidBody->setCollisionFlags( rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT );
 
@@ -513,7 +444,7 @@ void AssimpModel::buildHang()
 		btRigidBody* rigidBodyFrom = assimpString->getAssimpBoneHolder()->getRigidBody();
 		btRigidBody* rigidBodyTo   = mAssimpHang->getRigidBody();
 
-		btSoftBody* rope = localCreateRope( from, to, rigidBodyFrom, rigidBodyTo );
+		btSoftBody* rope = mBulletWorld->createRope( from, to, rigidBodyFrom, rigidBodyTo );
 
 		assimpString->setRope( rope );
 	}
@@ -576,13 +507,10 @@ bool AssimpModel::isEqual( const Vec3f& vec1, const Vec3f& vec2 ) const
 AssimpModel::~AssimpModel()
 {
 	{
-		mOwnerWorld->removeRigidBody( mAssimpHang->getRigidBody() );
-
-		if( mAssimpHang->getRigidBody()->getMotionState() )
-			delete mAssimpHang->getRigidBody()->getMotionState();
-
-		delete mAssimpHang->getRigidBody();
+		btRigidBody* rigidBody = mAssimpHang->getRigidBody();
 		mAssimpHang->setRigidBody( 0 );
+
+		mBulletWorld->destroyRigidBody( rigidBody );
 
 		while( mAssimpHang->getCompoundShape()->getNumChildShapes() )
 		{
@@ -597,9 +525,10 @@ AssimpModel::~AssimpModel()
 		for( AssimpHang::AssimpStrings::const_iterator it = mAssimpHang->getAssimpStrings().begin(); it != mAssimpHang->getAssimpStrings().end(); ++it )
 		{
 			AssimpStringRef assimpString = *it;
-			( ( btSoftRigidDynamicsWorld* )mOwnerWorld )->removeSoftBody( assimpString->getRope() );
-			delete assimpString->getRope();
+			btSoftBody* rope = assimpString->getRope();
 			assimpString->setRope( 0 );
+
+			mBulletWorld->destroyRope( rope );
 		}
 		mAssimpHang->getAssimpStrings().clear();
 	}
@@ -609,11 +538,9 @@ AssimpModel::~AssimpModel()
 	for( AssimpJoints::iterator it = mAssimpJoints.begin(); it != mAssimpJoints.end(); ++it )
 	{
 		AssimpJointRef& assimpJoint = *it;
-
 		btConeTwistConstraint* constraint = assimpJoint->getConstraint();
 		assimpJoint->setConstraint( 0 );
-		mOwnerWorld->removeConstraint( constraint );
-		delete constraint;
+		mBulletWorld->destroyConstraint( constraint );
 	}
 	mAssimpJoints.clear();
 
@@ -624,15 +551,7 @@ AssimpModel::~AssimpModel()
 		btRigidBody* rigidBody = assimpBone->getRigidBody();
 		assimpBone->setRigidBody( 0 );
 
-		while( rigidBody->getNumConstraintRefs() > 0 )
-			rigidBody->removeConstraintRef( rigidBody->getConstraintRef( 0 ) );
-
-		mOwnerWorld->removeRigidBody( rigidBody );
-
-		if( rigidBody->getMotionState() )
-			delete rigidBody->getMotionState();
-
-		delete rigidBody;
+		mBulletWorld->destroyRigidBody( rigidBody );
 
 		btCollisionShape* shape = assimpBone->getShape();
 		assimpBone->setShape( 0 );
@@ -675,6 +594,9 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 	rotate.normalize();
 
 	Vec3f posCenter = mAssimpHang->getNodeCross()->getDerivedPosition();
+	Vec3f translateString = Vec3f::zero();
+// 	Vec3f translateString = pos2 - mAssimpHang->getNodeCross()->getDerivedPosition();
+// 	Vec3f posCenter = pos2;
 	btTransform transform;
 	transform.setIdentity();
 	transform.setRotation( CinderBullet::convert( rotate ));
@@ -687,161 +609,22 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 	{
 		AssimpStringRef assimpString = *it;
 
-		assimpString->getRope()->m_nodes[ assimpString->getRope()->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( assimpString->getNodeHang()->getDerivedPosition() - mAssimpHang->getNodeCross()->getDerivedPosition() ) ) + mAssimpHang->getNodeCross()->getDerivedPosition() );
+		assimpString->getRope()->m_nodes[ assimpString->getRope()->m_nodes.size() - 1 ].m_x = CinderBullet::convert( ( rotate * ( assimpString->getNodeHang()->getDerivedPosition() - mAssimpHang->getNodeCross()->getDerivedPosition() ) ) + mAssimpHang->getNodeCross()->getDerivedPosition() + translateString );
 	}
 }
 
 void AssimpModel::draw()
 {
-	if( mDrawSkin )
+	if( mBulletWorld->mBulletParameter->mDrawSkin )
 	{
-		if ( mEnableWireframe )
+		if ( mBulletWorld->mBulletParameter->mEnableWireframe )
 			gl::enableWireframe();
 
 		mAssimpLoader.draw();
 
-		if ( mEnableWireframe )
+		if ( mBulletWorld->mBulletParameter->mEnableWireframe )
 			gl::disableWireframe();
 	}
-}
-
-btRigidBody* AssimpModel::localCreateRigidBody( btScalar mass, const btTransform& startTransform, btCollisionShape* shape )
-{
-	bool isDynamic = ( mass != 0.f );
-
-	btVector3 localInertia( 0, 0, 0 );
-	if (isDynamic)
-		shape->calculateLocalInertia( mass, localInertia );
-
-	btDefaultMotionState* myMotionState = new btDefaultMotionState( startTransform );
-
-	btRigidBody::btRigidBodyConstructionInfo rbInfo( mass, myMotionState, shape, localInertia );
-	btRigidBody* body = new btRigidBody( rbInfo );
-
-	mOwnerWorld->addRigidBody( body );//, CT_BONE, CT_GROUND );
-
-	if( mShowDebugDrawRigidBody )
-		body->setCollisionFlags( body->getCollisionFlags() & ~( btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT ) );
-	else
-		body->setCollisionFlags( body->getCollisionFlags() |    btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT );
-
-	return body;
-}
-
-btSoftBody* AssimpModel::localCreateRope( const Vec3f& from, const Vec3f& to, btRigidBody* rigidBodyFrom, btRigidBody* rigidBodyTo )
-{
-	btSoftBody* rope = btSoftBodyHelpers::CreateRope( *mSoftBodyWorldInfo
-	                                                ,  CinderBullet::convert( from )
-	                                                ,  CinderBullet::convert( to )
-	                                                ,  mRopePart
-	                                                ,  2 );
-
-	rope->setTotalMass( mRopeMass );
-
-	rope->m_cfg.kVCF        = mKVCF;
-	rope->m_cfg.kDP         = mKDP;
-	rope->m_cfg.kDG         = mKDG;
-	rope->m_cfg.kLF         = mKLF;
-	rope->m_cfg.kPR         = mKPR;
-	rope->m_cfg.kVC         = mKVC;
-	rope->m_cfg.kDF         = mKDF;
-	rope->m_cfg.kMT         = mKMT;
-	rope->m_cfg.kCHR        = mKCHR;
-	rope->m_cfg.kKHR        = mKKHR;
-	rope->m_cfg.kSHR        = mKSHR;
-	rope->m_cfg.kAHR        = mKAHR;
-	rope->m_cfg.maxvolume   = mMaxvolume;
-	rope->m_cfg.timescale   = mTimescale;
-	rope->m_cfg.viterations = mViterations;
-	rope->m_cfg.piterations = mPiterations;
-	rope->m_cfg.diterations = mDiterations;
-	rope->m_cfg.citerations = mCiterations;
-
-	rope->appendAnchor( 0                       , rigidBodyFrom );//, CinderBullet::convert( Vec3f::zero() ) );
-	rope->appendAnchor( rope->m_nodes.size() - 1, rigidBodyTo   );//, CinderBullet::convert( Vec3f::zero() ) );
-
-	((btSoftRigidDynamicsWorld*)mOwnerWorld)->addSoftBody( rope );
-
-	return rope;
-}
-
-void AssimpModel::setShowDebugDrawRigidBody( bool showDebugDrawRigidBody )
-{
-	if( mShowDebugDrawRigidBody == showDebugDrawRigidBody )
-		return;
-
-	mShowDebugDrawRigidBody = showDebugDrawRigidBody;
-
-	for( AssimpBones::iterator it = mAssimpBones.begin(); it != mAssimpBones.end(); ++it )
-	{
-		AssimpBoneRef& assimpBone = *it;
-		btRigidBody*   rigidBody = assimpBone->getRigidBody();
-
-		if( mShowDebugDrawRigidBody )
-			rigidBody->setCollisionFlags( rigidBody->getCollisionFlags() & ~( btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT ) );
-		else
-			rigidBody->setCollisionFlags( rigidBody->getCollisionFlags() |    btCollisionObject::CF_DISABLE_VISUALIZE_OBJECT );
-	}
-}
-
-bool AssimpModel::getShowDebugDrawRigidBody() const
-{
-	return mShowDebugDrawRigidBody;
-}
-
-void AssimpModel::setupParams()
-{
-	mParamsBird = mndl::params::PInterfaceGl( "AssimpModel", Vec2i( 250, 350 ), Vec2i( 500, 50 ) );
-	mParamsBird.addPersistentSizeAndPosition();
-
-	mParamsBird.addText( "RigidBody" );
-	mParamsBird.addPersistentParam( "Linear damping"             , &mLinearDamping            , 0.85 , "min=0.0 max=1.0 step=0.01" );
-	mParamsBird.addPersistentParam( "Angular damping"            , &mAngularDamping           , 0.85 , "min=0.0 max=1.0 step=0.01" );
-	mParamsBird.addPersistentParam( "Deactivation time"          , &mDeactivationTime         , 0.8  , "min=0.0         step=0.01" );
-	mParamsBird.addPersistentParam( "Linear sleeping thresholds" , &mLinearSleepingThresholds , 1.6  , "min=0.0         step=0.01" );
-	mParamsBird.addPersistentParam( "Angular sleeping thresholds", &mAngularSleepingThresholds, 2.5  , "min=0.0         step=0.01" );
-
-	mParamsBird.addText( "Constraint" );
-	mParamsBird.addPersistentParam( "Damping"                    , &mDamping                  , 0.60 , "min=0.0 max=1.0 step=0.01" );
-	mParamsBird.addPersistentParam( "StopCMF"                    , &mStopCMF                  , 0.30 , "min=0.0 max=1.0 step=0.01" );
-	mParamsBird.addPersistentParam( "StopERP"                    , &mStopERP                  , 0.80 , "min=0.0 max=1.0 step=0.01" );
-// 	mParamsBird.addPersistentParam( "LinCFM"                     , &mLinCFM                   , 0.0  , "min=0.0 max=1.0 step=0.01" );
-// 	mParamsBird.addPersistentParam( "LinERP"                     , &mLinERP                   , 0.7  , "min=0.0 max=1.0 step=0.01" );
-// 	mParamsBird.addPersistentParam( "AngCFM"                     , &mAngCFM                   , 0.0f , "min=0.0 max=1.0 step=0.01" );
-
-	mParamsBird.addText( "Assimp" );
-	mParamsBird.addPersistentParam( "DrawSkin"                  , &mDrawSkin, true );
-	mParamsBird.addPersistentParam( "EnableWireframe"           , &mEnableWireframe, false );
-	mParamsBird.addPersistentParam( "ShowDebugDraw"             , &mShowDebugDrawRigidBody, true );
-
-	mParamsRope = mndl::params::PInterfaceGl( "AssimpRope", Vec2i( 250, 350 ), Vec2i( 700, 50 ) );
-	mParamsRope.addPersistentSizeAndPosition();
-	mParamsRope.addPersistentParam( "String size"                              , &mRopeSize    , 5.0f, "min=0.0 max=15.0 step=0.1" );
-	mParamsRope.addPersistentParam( "Part"                                     , &mRopePart    , 16,   "min=4 max=50 step=1"         );
-	mParamsRope.addPersistentParam( "Mass"                                     , &mRopeMass    , 5.0,  "min=0.01 max=20.0 step=0.01" );
-	mParamsRope.addPersistentParam( "Velocities correction factor (Baumgarte)" , &mKVCF        , 1.0,  "min=0.0  max=20.0 step=0.1"  );
-	mParamsRope.addPersistentParam( "Damping coefficient [0,1]"                , &mKDP         , 0.0,  "min=0.0  max=1.0  step=0.01" );
-	mParamsRope.addPersistentParam( "Drag coefficient [0,+inf]"                , &mKDG         , 0.0,  "min=0.0           step=0.01" );
-	mParamsRope.addPersistentParam( "Lift coefficient [0,+inf]"                , &mKLF         , 0.0,  "min=0.0           step=0.01" );
-	mParamsRope.addPersistentParam( "Pressure coefficient [-inf,+inf]"         , &mKPR         , 0.0,  "                  step=0.01" );
-	mParamsRope.addPersistentParam( "Volume conversation coefficient [0,+inf]" , &mKVC         , 0.0,  "min=0.0           step=0.01" );
-	mParamsRope.addPersistentParam( "Dynamic friction coefficient [0,1]"       , &mKDF         , 0.2,  "min=0.0  max=1.0  step=0.01" );
-	mParamsRope.addPersistentParam( "Pose matching coefficient [0,1]"          , &mKMT         , 0.0,  "min=0.0  max=1.0  step=0.01" );
-	mParamsRope.addPersistentParam( "Rigid contacts hardness [0,1]"            , &mKCHR        , 1.0,  "min=0.0  max=1.0  step=0.01" );
-	mParamsRope.addPersistentParam( "Kinetic contacts hardness [0,1]"          , &mKKHR        , 0.1,  "min=0.0  max=1.0  step=0.01" );
-	mParamsRope.addPersistentParam( "Soft contacts hardness [0,1]"             , &mKSHR        , 1.0,  "min=0.0  max=1.0  step=0.01" );
-	mParamsRope.addPersistentParam( "Anchors hardness [0,1]"                   , &mKAHR        , 1.0,  "min=0.0  max=1.0  step=0.01" );
-	mParamsRope.addPersistentParam( "Maximum volume ratio for pose"            , &mMaxvolume   , 1.0   );
-	mParamsRope.addPersistentParam( "Time scale"                               , &mTimescale   , 1.0   );
-	mParamsRope.addPersistentParam( "Velocities solver iterations"             , &mViterations , 0     );
-	mParamsRope.addPersistentParam( "Positions solver iterations"              , &mPiterations , 15    );
-	mParamsRope.addPersistentParam( "Drift solver iterations"                  , &mDiterations , 0     );
-	mParamsRope.addPersistentParam( "Cluster solver iterations"                , &mCiterations , 4     );
-
-// 	mParams.addText( "Hang constraints" );
-// 	mParams.addPersistentParam( "Tau"          , &mTau         , 0.01f,  "min=0.0 max=1.0 step=0.01" );
-// 	mParams.addPersistentParam( "Damping"      , &mDamping     , 1.0f,  "min=0.0 max=1.0 step=0.01" );
-// 	mParams.addPersistentParam( "Impulse clamp", &mImpulseClamp, 0.0f,  "min=0.0 max=10.0 step=0.1" );
 }
 
 int AssimpModel::getNumAnimate()
