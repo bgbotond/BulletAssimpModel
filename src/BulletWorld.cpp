@@ -297,7 +297,7 @@ AssimpModel *BulletWorld::spawnAssimpModel( const ci::Vec3f &pos )
 
 	posConv = ci::Vec3f( 0, 10, 0 );
 
-	AssimpModel *assimpModel = new AssimpModel( this, posConv, ci::app::App::get()->getAssetPath( "madar_0406.dae" ), ci::app::App::get()->getAssetPath( "madar_0406.xml" ) );
+	AssimpModel *assimpModel = new AssimpModel( this, posConv, ci::app::App::get()->getAssetPath( "madar_0618.dae" ), ci::app::App::get()->getAssetPath( "madar_0618.xml" ) );
 	mAssimpModels.push_back( assimpModel );
 
 	return assimpModel;

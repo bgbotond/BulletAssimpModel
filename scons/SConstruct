@@ -4,7 +4,7 @@ env = Environment(ENV = {'PATH' : os.environ['PATH']})
 env['APP_TARGET'] = 'BulletAssimpModelApp'
 env['APP_SOURCES'] = ['AssimpModel.cpp', 'BulletConstraint.cpp', 'BulletWorld.cpp',
 	'BulletAssimpModelApp.cpp', 'BulletParameter.cpp', 'CinderBulletDebugDrawer.cpp']
-env['ASSETS'] = ['zold madar.jpg', 'madar_0406.dae', 'madar_0406.xml']
+env['ASSETS'] = ['tomi1.jpg', 'madar_0618.dae', 'madar_0618.xml']
 env['DEBUG'] = 1
 
 def CheckPKGConfig(context, version):
