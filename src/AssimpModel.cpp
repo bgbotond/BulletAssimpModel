@@ -582,7 +582,7 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 		return;
 
 	Quatf rot = Quatf( Vec3f::yAxis(), M_PI / 2.0f );
-	Vec3f pos2  = rot * pos;
+	//Vec3f pos2  = rot * pos;
 	Vec3f dir2  = rot * dir;
 	Vec3f norm2 = rot * norm;
 

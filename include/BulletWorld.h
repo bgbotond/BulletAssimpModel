@@ -31,7 +31,7 @@ public:
 	void initPhysics();
 	void donePhysics();
 
-	AssimpModel *BulletWorld::spawnAssimpModel( const ci::Vec3f &pos );
+	AssimpModel *spawnAssimpModel( const ci::Vec3f &pos );
 	void removeAssimpModel( AssimpModel *assimpModel );
 	void updateAssimpModel( AssimpModel *assimpModel, const ci::Vec3f pos, const ci::Vec3f dir, const ci::Vec3f norm );
 

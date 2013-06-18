@@ -142,10 +142,13 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 					{
 						const Finger& finger = fingerIter->second;
 
+						// FIXME: no finger getId in current LeapSdk
+						/*
 						if( gesture.pointable().id() == finger.getId() )
 						{
 							mActGestures.push_back( actFinger - 1 );
 						}
+						*/
 
 						++actFinger;
 					}
@@ -451,7 +454,7 @@ void BulletAssimpModelApp::draw()
 	gl::enableDepthWrite();
 
 	mBulletWorld.draw();
-	mndl::params::PInterfaceGl::draw();
+	mParams.draw();
 
 	if( mDrawVectors && ( mAssimpModel || mAssimpModelDebug ) )
 	{

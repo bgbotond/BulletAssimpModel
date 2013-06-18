@@ -2,10 +2,12 @@
 #define __AssimpModel_H__
 
 #include <vector>
-#include "mndlkit/params/PParams.h"
-#include "BulletWorld.h"
+#include "btBulletDynamicsCommon.h"
+#include "BulletSoftBody/btSoftBody.h"
 #include "AssimpLoader.h"
 #include "Node.h"
+
+#include "mndlkit/params/PParams.h"
 
 typedef std::shared_ptr< class AssimpBone             > AssimpBoneRef;
 typedef std::shared_ptr< class AssimpJoint            > AssimpJointRef;
@@ -14,6 +16,8 @@ typedef std::shared_ptr< class AssimpString           > AssimpStringRef;
 typedef std::shared_ptr< class AssimpHang             > AssimpHangRef;
 typedef std::shared_ptr< class AssimpAnimBone         > AssimpAnimBoneRef;
 typedef std::shared_ptr< class AssimpAnim             > AssimpAnimRef;
+
+class BulletWorld;
 
 class AssimpBone
 {
