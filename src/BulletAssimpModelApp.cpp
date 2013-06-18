@@ -68,6 +68,7 @@ protected:
 	bool                    mDrawVectors;
 
 	gl::Light* mLight;
+	Vec3f      mLightDirection;
 };
 
 void BulletAssimpModelApp::setup()
@@ -93,7 +94,6 @@ void BulletAssimpModelApp::setup()
 
 		//create light
 		mLight = new gl::Light( gl::Light::DIRECTIONAL, 0 );
-		mLight->lookAt( Vec3f( 0, 30, 0 ), Vec3f( 0, 0, 0 ) );
 		mLight->setAmbient( Color( 1.0f, 1.0f, 1.0f ) );
 		mLight->setDiffuse( Color( 1.0f, 1.0f, 1.0f ) );
 		mLight->setSpecular( Color( 1.0f, 1.0f, 1.0f ) );
@@ -203,6 +203,8 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Fov", &mCameraFov, 45.f, "min=20 max=180 step=.1" );
 	mParams.addPersistentParam( "Eye", &mCameraEyePoint, Vec3f( 0.0f, 10.0f, -40.0f ));
 	mParams.addPersistentParam( "Center of Interest", &mCameraCenterOfInterestPoint, Vec3f( 0.0f, 10.0f, 0.0f ));
+	mParams.addText( "Light" );
+	mParams.addPersistentParam( "Direction", &mLightDirection, Vec3f( -0.93f, -0.27f, -0.26f ) );
 	mParams.addText( "Assimp test" );
 	mPosition = Vec3f( 0.0f, 10.0f, 0.0f );
 //	mParams.addPersistentParam( "Position" , &mPosition , Vec3f( 0.0f, 10.0f, 0.0f ));
@@ -394,8 +396,8 @@ void BulletAssimpModelApp::update()
 		mCameraCenterOfInterestPoint = cam.getCenterOfInterestPoint();
 	}
 
+	mLight->setDirection( mLightDirection * Vec3f( 1.f, -1.f, 1.f ) );
 	mLight->update( cam );
-	mLight->enable();
 
 	// Update device
 	if( mLeap && mLeap->isConnected() )
@@ -453,7 +455,10 @@ void BulletAssimpModelApp::draw()
 	gl::enableDepthRead();
 	gl::enableDepthWrite();
 
+	mLight->enable();
 	mBulletWorld.draw();
+	mLight->disable();
+
 	mParams.draw();
 
 	if( mDrawVectors && ( mAssimpModel || mAssimpModelDebug ) )
