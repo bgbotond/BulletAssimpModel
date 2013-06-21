@@ -4,7 +4,8 @@ env = Environment(ENV = {'PATH' : os.environ['PATH']})
 env['APP_TARGET'] = 'BulletAssimpModelApp'
 env['APP_SOURCES'] = ['AssimpModel.cpp', 'BulletConstraint.cpp', 'BulletWorld.cpp',
 	'BulletAssimpModelApp.cpp', 'BulletParameter.cpp', 'CinderBulletDebugDrawer.cpp']
-env['ASSETS'] = ['tomi1.jpg', 'madar_0618.dae', 'madar_0618.xml']
+env['ASSETS'] = ['tomi1.jpg', 'bird.dae', 'bird.xml']
+env['ASSETS'] += ['stage/*']
 env['DEBUG'] = 1
 
 def CheckPKGConfig(context, version):
@@ -36,6 +37,23 @@ if (not GetOption('clean')):
 			env.ParseConfig('pkg-config --cflags --libs %s' % (lib))
 
 	env = conf.Finish()
+
+# copy dylib to app
+if 'APP_TARGET' in env:
+	for l in ['libBulletSoftBody.2.80.dylib', 'libBulletDynamics.2.80.dylib', \
+			'libBulletCollision.2.80.dylib', 'libLinearMath.2.80.dylib']:
+		fout = env['APP_TARGET'] + '.app/Contents/MacOS/' + l
+		fin = '/opt/local/lib/' + l 
+		Command(fout, fin, Copy(fout, fin))
+# TODO: add post action
+'''
+#!/bin/bash
+TARGET=./BulletAssimpModelApp.app/Contents/MacOS/BulletAssimpModelApp
+install_name_tool -change /opt/local/lib/libBulletSoftBody.2.80.dylib @loader_path/libBulletSoftBody.2.80.dylib $TARGET
+install_name_tool -change /opt/local/lib/libBulletDynamics.2.80.dylib @loader_path/libBulletDynamics.2.80.dylib $TARGET
+install_name_tool -change /opt/local/lib/libBulletCollision.2.80.dylib @loader_path/libBulletCollision.2.80.dylib $TARGET
+install_name_tool -change /opt/local/lib/libLinearMath.2.80.dylib @loader_path/libLinearMath.2.80.dylib $TARGET
+'''
 
 env = SConscript('../../../blocks/MndlKit/scons/SConscript', exports = 'env')
 env = SConscript('../../../blocks/Cinder-LeapSdk/scons/SConscript', exports = 'env')

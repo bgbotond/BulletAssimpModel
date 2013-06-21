@@ -3,7 +3,9 @@
 #include "cinder/gl/Light.h"
 #include "cinder/Utilities.h"
 #include "cinder/MayaCamUI.h"
-#include "AntTweakBar.h"
+#include "cinder/Timeline.h"
+
+//#include "AntTweakBar.h"
 #include "mndlkit/params/PParams.h"
 #include "BulletWorld.h"
 #include "Cinder-LeapSdk.h"
@@ -19,6 +21,7 @@ class BulletAssimpModelApp : public AppNative
 	typedef std::vector< int > Gestures;
 
 public:
+	void prepareSettings( Settings *settings );
 	void setup();
 	void mouseDown( MouseEvent event );
 	void mouseDrag( MouseEvent event );
@@ -34,7 +37,6 @@ protected:
 
 	int  getActHand( Frame& frame, int actHand );
 
-protected:
 	BulletWorld mBulletWorld;
 	AssimpModel *mAssimpModel;
 	AssimpModel *mAssimpModelDebug;
@@ -69,7 +71,28 @@ protected:
 
 	gl::Light* mLight;
 	Vec3f      mLightDirection;
+
+	// stage
+	void loadBackgroundLayers( const fs::path &relativeDir );
+	struct ModelInfo
+	{
+		mndl::assimp::AssimpLoaderRef mModel;
+		Anim< double > mTimer;
+	};
+	typedef std::shared_ptr< ModelInfo > ModelInfoRef;
+	vector< ModelInfoRef > mBackgroundLayers;
+
+	int mCameraIndex;
+	vector< CameraPersp > mCameras;
+
+	void startGame();
+	void endGame();
 };
+
+void BulletAssimpModelApp::prepareSettings( Settings *settings )
+{
+	settings->setWindowSize( 1280, 800 );
+}
 
 void BulletAssimpModelApp::setup()
 {
@@ -104,6 +127,8 @@ void BulletAssimpModelApp::setup()
 
 	mBulletWorld.setup();
 
+	loadBackgroundLayers( "stage" );
+
 //	AssimpModel assimpModel();
 
 	// Start device
@@ -114,6 +139,104 @@ void BulletAssimpModelApp::setup()
 	mActGestures.clear();
 }
 
+void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )
+{
+	fs::path dataPath = app::getAssetPath( relativeDir );
+
+	if ( dataPath.empty() )
+	{
+		app::console() << "Could not find model directory assets/" << relativeDir.string() << std::endl;
+		return;
+	}
+
+	vector< string > cameraNames;
+
+	// default camera
+	CameraPersp cam;
+	cam.setPerspective( 60, getWindowAspectRatio(), 0.1f, 1000.0f );
+	cam.setEyePoint( Vec3f( 0, 7, 20 ) );
+	cam.setCenterOfInterestPoint( Vec3f( 0, 7, 0 ) );
+	cameraNames.push_back( "default" );
+	mCameras.push_back( cam );
+
+	// load models
+	for ( fs::directory_iterator it( dataPath ); it != fs::directory_iterator(); ++it )
+	{
+		if ( fs::is_regular_file( *it ) &&
+				( ( it->path().extension().string() == ".dae" ) ||
+				  ( it->path().extension().string() == ".obj" ) ) )
+		{
+			mndl::assimp::AssimpLoaderRef model;
+
+			try
+			{
+				model = mndl::assimp::AssimpLoader::create( getAssetPath( relativeDir / it->path().filename() ) );
+			}
+			catch ( const mndl::assimp::AssimpLoaderExc &exc  )
+			{
+				app::console() << "Unable to load model " << it->path() << ": " << exc.what() << std::endl;
+			}
+			if ( model )
+			{
+				ModelInfoRef mi = ModelInfoRef( new ModelInfo() );
+				model->setAnimation( 0 );
+				model->enableTextures( true );
+				model->enableSkinning( false );
+				model->enableAnimation( true );
+				mi->mModel = model;
+				mi->mTimer = 0.;
+
+				mBackgroundLayers.push_back( mi );
+
+				// store model cameras
+				for ( size_t i = 0; i < model->getNumCameras(); i++ )
+				{
+					string name = model->getCameraName( i );
+					cameraNames.push_back( name );
+					mCameras.push_back( model->getCamera( i ) );
+				}
+			}
+		}
+	}
+
+	mParams.addSeparator();
+	if ( mCameras.size() > 1 )
+		mCameraIndex = 1;
+	else
+		mCameraIndex = 0;
+
+	mParams.addParam( "Cameras", cameraNames, &mCameraIndex );
+}
+
+void BulletAssimpModelApp::startGame()
+{
+	if ( mAssimpModelDebug )
+	{
+		mBulletWorld.removeAssimpModel( mAssimpModelDebug );
+		mAssimpModelDebug = NULL;
+	}
+
+	// animate the layers
+	double maxDuration = 0;
+	for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
+	{
+		double animDuration = (*it)->mModel->getAnimationDuration( 0 );
+		app::console() << animDuration << endl;
+		maxDuration = math< double >::max( animDuration, maxDuration );
+		(*it)->mTimer = 0.;
+		timeline().apply( &(*it)->mTimer, animDuration * .99, animDuration );
+	}
+
+	// add the bird after the last layer
+	timeline().add( [ this ]() {
+						mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition );
+					}, timeline().getCurrentTime() + maxDuration + .5 );
+}
+
+void BulletAssimpModelApp::endGame()
+{
+}
+
 // Called when Leap frame data is ready
 void BulletAssimpModelApp::onFrame( Frame frame )
 {
@@ -122,6 +245,7 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 	mActHand = getActHand( frame, mActHand );
 	mActGestures.clear();
 
+#if 0
 	if( mActHand != -1 )
 	{
 		const vector<Leap::Gesture>& gestures = frame.getGestures();
@@ -156,6 +280,7 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 			}
 		}
 	}
+#endif
 }
 
 int BulletAssimpModelApp::getActHand( Frame& frame, int actHand )
@@ -200,23 +325,28 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addSeparator();
 	mParams.addText( "Camera" );
 	mParams.addPersistentParam( "Lock camera (l)", &mCameraLock, false );
+	/*
 	mParams.addPersistentParam( "Fov", &mCameraFov, 45.f, "min=20 max=180 step=.1" );
 	mParams.addPersistentParam( "Eye", &mCameraEyePoint, Vec3f( 0.0f, 10.0f, -40.0f ));
 	mParams.addPersistentParam( "Center of Interest", &mCameraCenterOfInterestPoint, Vec3f( 0.0f, 10.0f, 0.0f ));
+	*/
 	mParams.addText( "Light" );
-	mParams.addPersistentParam( "Direction", &mLightDirection, Vec3f( -0.93f, -0.27f, -0.26f ) );
+	mParams.addPersistentParam( "Light direction", &mLightDirection, Vec3f( -0.93f, -0.27f, -0.26f ) );
 	mParams.addText( "Assimp test" );
 	mPosition = Vec3f( 0.0f, 10.0f, 0.0f );
 //	mParams.addPersistentParam( "Position" , &mPosition , Vec3f( 0.0f, 10.0f, 0.0f ));
 	mParams.addPersistentParam( "Direction", &mDirection, Vec3f( 0.0f,  0.0f, -1.0f ));
 	mParams.addPersistentParam( "Normal"   , &mNormal   , Vec3f( 0.0f, -1.0f, 0.0f ));
 
-	mParams.addButton( "Spawn (k)", [ this ]()
+	mParams.addButton( "Start (k)", std::bind( &BulletAssimpModelApp::startGame, this ) );
+	/*
+	[ this ]()
 								{
 									if( mAssimpModelDebug )
 										mBulletWorld.removeAssimpModel( mAssimpModelDebug );
-									mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition ); //* 10 );
+									mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition ); // * 10 );
 								} );
+								*/
 
 	mParams.addButton( "Sing (0)", [ this ]()
 								{
@@ -304,11 +434,7 @@ void BulletAssimpModelApp::keyDown( KeyEvent event )
 		}
 		break;
 	case KeyEvent::KEY_k:
-		{
-			if( mAssimpModelDebug )
-				mBulletWorld.removeAssimpModel( mAssimpModelDebug );
-			mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition ); //* 10 );
-		}
+		startGame();
 		break;
 	case KeyEvent::KEY_LEFT:
 		{
@@ -372,6 +498,7 @@ void BulletAssimpModelApp::update()
 	mBulletWorld.update();
 
 	CameraPersp cam = mMayaCam.getCamera();
+	/*
 	if ( cam.getFov() != mCameraFov )
 	{
 		cam.setPerspective( mCameraFov, getWindowAspectRatio(), 0.1f, 1000.0f );
@@ -395,8 +522,9 @@ void BulletAssimpModelApp::update()
 		mCameraEyePoint              = cam.getEyePoint();
 		mCameraCenterOfInterestPoint = cam.getCenterOfInterestPoint();
 	}
+	*/
 
-	mLight->setDirection( mLightDirection * Vec3f( 1.f, -1.f, 1.f ) );
+	mLight->setDirection( mLightDirection * Vec3f( 1.f, 1.f, -1.f ) );
 	mLight->update( cam );
 
 	// Update device
@@ -413,10 +541,13 @@ void BulletAssimpModelApp::update()
 		mHandDir  = hand.getDirection();
 		mHandNorm = hand.getNormal();
 
+		/*
 		if( ! mAssimpModel )
 			mAssimpModel = mBulletWorld.spawnAssimpModel( mHandPos );
+		*/
 
-		mBulletWorld.updateAssimpModel( mAssimpModel, mHandPos, mHandDir, mHandNorm );
+		if ( mAssimpModel )
+			mBulletWorld.updateAssimpModel( mAssimpModel, mHandPos, mHandDir, mHandNorm );
 	}
 	else
 	{
@@ -442,6 +573,21 @@ void BulletAssimpModelApp::update()
 		if( mAssimpModel )
 			mAssimpModel->doAnimate( animPos );
 	}
+
+	// change current camera
+	static int lastCamera = -1;
+	if ( lastCamera != mCameraIndex )
+	{
+		mMayaCam.setCurrentCam( mCameras[ mCameraIndex ] );
+		lastCamera = mCameraIndex;
+	}
+
+	// update background models
+	for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
+	{
+		(*it)->mModel->setTime( (*it)->mTimer );
+		(*it)->mModel->update();
+	}
 }
 
 void BulletAssimpModelApp::draw()
@@ -456,6 +602,11 @@ void BulletAssimpModelApp::draw()
 	gl::enableDepthWrite();
 
 	mLight->enable();
+	for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
+	{
+		(*it)->mModel->draw();
+	}
+
 	mBulletWorld.draw();
 	mLight->disable();
 

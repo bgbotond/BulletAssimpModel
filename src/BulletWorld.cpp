@@ -295,9 +295,10 @@ AssimpModel *BulletWorld::spawnAssimpModel( const ci::Vec3f &pos )
 //	ci::Vec3f posConv = pos / 10;
 	ci::Vec3f posConv = pos;
 
-	posConv = ci::Vec3f( 0, 10, 0 );
+	posConv = ci::Vec3f( 0, 0, 0 );
 
-	AssimpModel *assimpModel = new AssimpModel( this, posConv, ci::app::App::get()->getAssetPath( "madar_0618.dae" ), ci::app::App::get()->getAssetPath( "madar_0618.xml" ) );
+	AssimpModel *assimpModel = new AssimpModel( this, posConv, ci::app::App::get()->getAssetPath( "bird.dae" ), ci::app::App::get()->getAssetPath( "bird.xml" ) );
+	//AssimpModel *assimpModel = new AssimpModel( this, posConv, ci::app::App::get()->getAssetPath( "madar_0618.dae" ), ci::app::App::get()->getAssetPath( "madar_0618.xml" ) );
 	mAssimpModels.push_back( assimpModel );
 
 	return assimpModel;
@@ -312,9 +313,6 @@ void BulletWorld::removeAssimpModel( AssimpModel *assimpModel )
 
 void BulletWorld::updateAssimpModel( AssimpModel *assimpModel, const ci::Vec3f pos, const ci::Vec3f dir, const ci::Vec3f norm )
 {
-	ci::app::App::get()->console() << pos << std::endl;
-
-//	ci::Vec3f posConv = pos / 10;
 	assimpModel->update( pos, dir, norm );
 }
 
