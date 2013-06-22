@@ -652,4 +652,4 @@ void BulletAssimpModelApp::shutdown()
 	mndl::params::PInterfaceGl::save();
 }
 
-CINDER_APP_NATIVE( BulletAssimpModelApp, RendererGl )
+CINDER_APP_NATIVE( BulletAssimpModelApp, RendererGl( RendererGl::AA_MSAA_16 ) )

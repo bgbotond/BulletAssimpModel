@@ -6,7 +6,7 @@ env['APP_SOURCES'] = ['AssimpModel.cpp', 'BulletConstraint.cpp', 'BulletWorld.cp
 	'BulletAssimpModelApp.cpp', 'BulletParameter.cpp', 'CinderBulletDebugDrawer.cpp']
 env['ASSETS'] = ['tomi1.jpg', 'bird.dae', 'bird.xml']
 env['ASSETS'] += ['stage/*']
-env['DEBUG'] = 1
+env['DEBUG'] = 0
 
 def CheckPKGConfig(context, version):
 	context.Message( 'Checking for pkg-config... ' )
