@@ -61,6 +61,8 @@ protected:
 	Vec3f mHandPos;
 	Vec3f mHandDir;
 	Vec3f mHandNorm;
+	float mSmoothing;
+
 	bool mDrawVectors;
 	Vec3f mMovementRange;
 	float mParallaxScale;
@@ -268,14 +270,21 @@ void BulletAssimpModelApp::startGame()
 	mIconAlpha = 0.f;
 	timeline().apply( &mIconAlpha, 1.f, 2.f ).timelineEnd();
 
+	mHandPos = Vec3f( 0, 50, 0 );
+	mHandDir = Vec3f( 0, 0, 1 );
+	mHandNorm = Vec3f( 0, -1, 0 );
+
 	// add the bird after the last layer
 	timeline().add( [ this ]() {
 						for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
 						{
 							(*it)->mModel->enableAnimation( false );
 						}
-						mAssimpModel = mBulletWorld.spawnAssimpModel( mHandPos );
-					}, timeline().getCurrentTime() + maxDuration + .5 );
+						//timeline().applyPtr( &mHandPos, Vec3f::zero(), 2.f );
+						// FIXME: birth position
+						mAssimpModel = mBulletWorld.spawnAssimpModel( Vec3f::zero() );
+						//mBulletWorld.updateAssimpModel( mAssimpModel, mHandPos, mHandDir, mHandNorm );
+					}, timeline().getCurrentTime() + maxDuration );
 }
 
 void BulletAssimpModelApp::endGame()
@@ -425,7 +434,9 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Hand pos" , &mHandPos , Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "Hand dir" , &mHandDir , Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "Hand norm", &mHandNorm, Vec3f( -1, -1, -1 ), "", true );
+	mParams.addPersistentParam( "Smoothing", &mSmoothing, 0.95f, "min=.0 max=.99 step=.01" );
 	mParams.addPersistentParam( "DrawVectors", &mDrawVectors, false );
+	mParams.addSeparator();
 	mParams.addPersistentParam( "Range X", &mMovementRange.x, 80, "min=0" );
 	mParams.addPersistentParam( "Range Y", &mMovementRange.y, 100, "min=0" );
 	mParams.addPersistentParam( "Range Z", &mMovementRange.z, 0, "min=0" );
@@ -700,9 +711,14 @@ void BulletAssimpModelApp::updateLeap()
 		Leap::Vector npos = ib.normalizePoint( hand.palmPosition() );
 		Leap::Vector ncenter = ib.normalizePoint( ib.center() );
 
-		mHandPos = mMovementRange * mndl::leap::fromLeap( npos - ncenter );
-		mHandDir = mndl::leap::fromLeap( hand.direction() );
-		mHandNorm = mndl::leap::fromLeap( hand.palmNormal() );
+		Vec3f handPos = mMovementRange * mndl::leap::fromLeap( npos - ncenter );
+		Vec3f handDir = mndl::leap::fromLeap( hand.direction() );
+		Vec3f handNorm = mndl::leap::fromLeap( hand.palmNormal() );
+		mHandPos = lerp< Vec3f >( handPos, mHandPos, mSmoothing );
+		mHandDir = mHandDir.slerp( mSmoothing, handDir );
+		mHandNorm = mHandNorm.slerp( mSmoothing, handNorm );
+		mHandDir = handDir;
+		mHandNorm = handNorm;
 	}
 	else
 	{
@@ -741,7 +757,9 @@ void BulletAssimpModelApp::draw()
 	gl::disableDepthWrite();
 	gl::enableAlphaBlending();
 	gl::color( ColorA::gray( 1.f, mIconAlpha ) );
-	gl::draw( mIconLayer, Area::proportionalFit( mIconLayer.getBounds(), getWindowBounds(), false, true ) );
+	Area outputArea = Area::proportionalFit( mIconLayer.getBounds(), getWindowBounds(), false, true );
+	outputArea += Vec2i( 0, getWindowHeight() - outputArea.getHeight() );
+	gl::draw( mIconLayer, outputArea );
 	gl::disableAlphaBlending();
 
 	mParams.draw();
