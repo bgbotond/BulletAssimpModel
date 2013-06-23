@@ -38,7 +38,6 @@ protected:
 
 	BulletWorld mBulletWorld;
 	AssimpModel *mAssimpModel;
-	AssimpModel *mAssimpModelDebug;
 
 	mndl::params::PInterfaceGl mParams;
 	float mFps;
@@ -51,12 +50,9 @@ protected:
 	Vec3f     mCameraCenterOfInterestPoint;
 	static const int mStepKey = 3;
 
-	// assimp model
-	Vec3f     mPosition;
-	Vec3f     mDirection;
-	Vec3f     mNormal;
-
 	// Leap
+	void updateLeap();
+
 	Leap::Controller mLeapController;
 	mndl::leap::LeapListener mLeapListener;
 
@@ -102,6 +98,13 @@ protected:
 	int mCameraIndex;
 	vector< CameraPersp > mCameras;
 
+	enum
+	{
+		STATE_IDLE = 0,
+		STATE_GAME
+	};
+	int mState;
+
 	void startGame();
 	void endGame();
 };
@@ -113,8 +116,8 @@ void BulletAssimpModelApp::prepareSettings( Settings *settings )
 
 void BulletAssimpModelApp::setup()
 {
-	mAssimpModel = 0;
-	mAssimpModelDebug = 0;
+	mState = STATE_IDLE;
+	mAssimpModel = NULL;
 
 	gl::enableDepthRead();
 	gl::enableDepthWrite();
@@ -253,10 +256,12 @@ void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )
 
 void BulletAssimpModelApp::startGame()
 {
-	if ( mAssimpModelDebug )
+	mState = STATE_GAME;
+
+	if ( mAssimpModel )
 	{
-		mBulletWorld.removeAssimpModel( mAssimpModelDebug );
-		mAssimpModelDebug = NULL;
+		mBulletWorld.removeAssimpModel( mAssimpModel );
+		mAssimpModel = NULL;
 	}
 
 	// animate the layers
@@ -267,7 +272,7 @@ void BulletAssimpModelApp::startGame()
 		(*it)->mModel->enableAnimation( true );
 		maxDuration = math< double >::max( animDuration, maxDuration );
 		(*it)->mTimer = 0.;
-		timeline().apply( &(*it)->mTimer, animDuration * .99, animDuration );
+		timeline().apply( &(*it)->mTimer, animDuration, animDuration );
 	}
 
 	// add the bird after the last layer
@@ -276,12 +281,30 @@ void BulletAssimpModelApp::startGame()
 						{
 							(*it)->mModel->enableAnimation( false );
 						}
-						mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition );
+						mAssimpModel = mBulletWorld.spawnAssimpModel( mHandPos );
 					}, timeline().getCurrentTime() + maxDuration + .5 );
 }
 
 void BulletAssimpModelApp::endGame()
 {
+	mState = STATE_IDLE;
+
+	if ( mAssimpModel )
+	{
+		mBulletWorld.removeAssimpModel( mAssimpModel );
+		mAssimpModel = NULL;
+	}
+
+	// animate the layers
+	double maxDuration = 0;
+	for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
+	{
+		double animDuration = (*it)->mModel->getAnimationDuration( 0 );
+		(*it)->mModel->enableAnimation( true );
+		maxDuration = math< double >::max( animDuration, maxDuration );
+		(*it)->mTimer = animDuration;
+		timeline().apply( &(*it)->mTimer, 0., animDuration );
+	}
 }
 
 // Called when Leap frame data is ready
@@ -381,38 +404,25 @@ void BulletAssimpModelApp::setupParams()
 	*/
 	mParams.addText( "Light" );
 	mParams.addPersistentParam( "Light direction", &mLightDirection, Vec3f( -0.93f, -0.27f, -0.26f ) );
-	mParams.addText( "Assimp test" );
-	mPosition = Vec3f( 0.0f, 10.0f, 0.0f );
-//	mParams.addPersistentParam( "Position" , &mPosition , Vec3f( 0.0f, 10.0f, 0.0f ));
-	mParams.addPersistentParam( "Direction", &mDirection, Vec3f( 0.0f,  0.0f, -1.0f ));
-	mParams.addPersistentParam( "Normal"   , &mNormal   , Vec3f( 0.0f, -1.0f, 0.0f ));
 
 	mParams.addButton( "Start (k)", std::bind( &BulletAssimpModelApp::startGame, this ) );
-	/*
-	[ this ]()
-								{
-									if( mAssimpModelDebug )
-										mBulletWorld.removeAssimpModel( mAssimpModelDebug );
-									mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition ); // * 10 );
-								} );
-								*/
 
 	mParams.addButton( "Sing (0)", [ this ]()
 								{
-									if( mAssimpModelDebug )
-										mAssimpModelDebug->doAnimate( 0 );
+									if( mAssimpModel )
+										mAssimpModel->doAnimate( 0 );
 								} );
 
 	mParams.addButton( "Fly (1)", [ this ]()
 								{
-									if( mAssimpModelDebug )
-										mAssimpModelDebug->doAnimate( 1 );
+									if( mAssimpModel )
+										mAssimpModel->doAnimate( 1 );
 								} );
 
 	mParams.addButton( "Wag (2)", [ this ]()
 								{
-									if( mAssimpModelDebug )
-										mAssimpModelDebug->doAnimate( 2 );
+									if( mAssimpModel )
+										mAssimpModel->doAnimate( 2 );
 								} );
 
 	mParams.addText( "Leap" );
@@ -533,8 +543,6 @@ void BulletAssimpModelApp::keyDown( KeyEvent event )
 		{
 			int pos = event.getCode() - KeyEvent::KEY_0;
 
-			if( mAssimpModelDebug )
-				mAssimpModelDebug->doAnimate( pos );
 			if( mAssimpModel )
 				mAssimpModel->doAnimate( pos );
 		}
@@ -580,24 +588,10 @@ void BulletAssimpModelApp::update()
 	mLight->setDirection( mLightDirection * Vec3f( 1.f, 1.f, -1.f ) );
 	mLight->update( cam );
 
-	// query Leap
-	const Leap::HandList hands = mLeapListener.getHands();
-	if ( !hands.empty() )
-	{
-		// get the first hand
-		const Leap::Hand hand = hands[ 0 ];
-		const Leap::InteractionBox ib = mLeapListener.getInteractionBox();
+	updateLeap();
 
-		Leap::Vector npos = ib.normalizePoint( hand.palmPosition() );
-		Leap::Vector ncenter = ib.normalizePoint( ib.center() );
-
-		mHandPos = mMovementRange * mndl::leap::fromLeap( npos - ncenter );
-		mHandDir = mndl::leap::fromLeap( hand.direction() );
-		mHandNorm = mndl::leap::fromLeap( hand.palmNormal() );
-
-		if ( mAssimpModelDebug )
-			mBulletWorld.updateAssimpModel( mAssimpModelDebug, mHandPos, mHandDir, mHandNorm );
-	}
+	if ( mAssimpModel )
+		mBulletWorld.updateAssimpModel( mAssimpModel, mHandPos, mHandDir, mHandNorm );
 
 #if 0
 	if( mLeap && mLeap->isConnected() )
@@ -684,6 +678,46 @@ void BulletAssimpModelApp::update()
 	}
 }
 
+void BulletAssimpModelApp::updateLeap()
+{
+	static double lastAppeared = 0.;
+	static double lastDisappeared = 0.;
+	const double handDetectedDurationThr = 2.;
+	const double handRemovedDurationThr = 4.;
+
+	double now = getElapsedSeconds();
+
+	// query Leap
+	const Leap::HandList hands = mLeapListener.getHands();
+	if ( !hands.empty() )
+	{
+		lastAppeared = now;
+		if ( ( mState == STATE_IDLE ) && ( now - lastDisappeared >= handDetectedDurationThr ) )
+		{
+			startGame();
+		}
+
+		// get the first hand
+		const Leap::Hand hand = hands[ 0 ];
+		const Leap::InteractionBox ib = mLeapListener.getInteractionBox();
+
+		Leap::Vector npos = ib.normalizePoint( hand.palmPosition() );
+		Leap::Vector ncenter = ib.normalizePoint( ib.center() );
+
+		mHandPos = mMovementRange * mndl::leap::fromLeap( npos - ncenter );
+		mHandDir = mndl::leap::fromLeap( hand.direction() );
+		mHandNorm = mndl::leap::fromLeap( hand.palmNormal() );
+	}
+	else
+	{
+		lastDisappeared = now;
+		if ( ( mState == STATE_GAME ) && ( now - lastAppeared >= handRemovedDurationThr ) )
+		{
+			endGame();
+		}
+	}
+}
+
 void BulletAssimpModelApp::draw()
 {
 	// clear out the window with black
@@ -706,7 +740,7 @@ void BulletAssimpModelApp::draw()
 
 	mParams.draw();
 
-	if( mDrawVectors && ( mAssimpModel || mAssimpModelDebug ) )
+	if( mDrawVectors && mAssimpModel )
 	{
 		Quatf rot = Quatf( Vec3f::yAxis(), M_PI / 2.0f );
 
@@ -717,11 +751,6 @@ void BulletAssimpModelApp::draw()
 		{
 			handDir  = rot * mHandDir;
 			handNorm = rot * mHandNorm;
-		}
-		else if( mAssimpModelDebug )
-		{
-			handDir  = rot * mDirection;
-			handNorm = rot * mNormal;
 		}
 
 		glColor4ub( 255, 0, 0, 255 );
