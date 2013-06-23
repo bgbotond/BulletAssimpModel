@@ -9,6 +9,7 @@ namespace mndl { namespace leap {
 class LeapListener : public Leap::Listener
 {
 	public:
+		virtual void onConnect( const Leap::Controller &controller );
 		virtual void onFrame( const Leap::Controller &controller );
 
 		const Leap::HandList & getHands() const;
