@@ -672,12 +672,14 @@ void BulletAssimpModelApp::update()
 		{
 			const mndl::assimp::AssimpNodeRef node = (*it)->mModel->getAssimpNode( (*lit)->mName );
 			float scaleX = node->getScale().x;
-
 			if ( scaleX == 0.f )
 				continue;
 
 			float parallax = lmap< float >( (*lit)->mOrigPos.y, (*it)->mMinLayerDepth, (*it)->mMaxLayerDepth, 1.f, 0.f );
-			node->setPosition( (*lit)->mOrigPos + Vec3f( parallax * layerMove / scaleX,  0.f, 0.f ) );
+			Vec3f pos = node->getPosition(); // current position
+			// set x according to parallax scrolling
+			pos.x = (*lit)->mOrigPos.x + parallax * layerMove / scaleX;
+			node->setPosition( pos );
 		}
 	}
 }
@@ -741,4 +743,4 @@ void BulletAssimpModelApp::shutdown()
 	mndl::params::PInterfaceGl::save();
 }
 
-CINDER_APP_NATIVE( BulletAssimpModelApp, RendererGl( RendererGl::AA_MSAA_6 ) )
+CINDER_APP_NATIVE( BulletAssimpModelApp, RendererGl( RendererGl::AA_MSAA_4 ) )
