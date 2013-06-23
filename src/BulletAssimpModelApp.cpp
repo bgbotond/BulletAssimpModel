@@ -440,7 +440,7 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Range X", &mMovementRange.x, 80, "min=0" );
 	mParams.addPersistentParam( "Range Y", &mMovementRange.y, 100, "min=0" );
 	mParams.addPersistentParam( "Range Z", &mMovementRange.z, 0, "min=0" );
-	mParams.addPersistentParam( "Parallax scale", &mParallaxScale, 10, "min=0 step=.1" );
+	mParams.addPersistentParam( "Parallax scale", &mParallaxScale, 100, "step=.1" );
 }
 
 void BulletAssimpModelApp::mouseDown( MouseEvent event )
@@ -667,7 +667,7 @@ void BulletAssimpModelApp::update()
 		(*it)->mModel->update();
 
 		// update background model layers
-		float layerMove = mParallaxScale * mHandPos.x / mMovementRange.x;
+		float layerMove = -mParallaxScale * mHandPos.x / mMovementRange.x;
 		auto layers = (*it)->mLayerNodes;
 		for ( auto lit = layers.begin(); lit != layers.end(); ++lit )
 		{
