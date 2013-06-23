@@ -217,7 +217,7 @@ void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )
 					if ( layer->mOrigPos.y < minDepth )
 						minDepth = layer->mOrigPos.y;
 					if ( layer->mOrigPos.y > maxDepth )
-						maxDepth = layer->mOrigPos.z;
+						maxDepth = layer->mOrigPos.y;
 
 					mi->mLayerNodes.push_back( layer );
 				}
