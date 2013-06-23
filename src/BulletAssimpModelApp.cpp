@@ -1,9 +1,11 @@
 #include "cinder/app/AppNative.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/Light.h"
-#include "cinder/Utilities.h"
+#include "cinder/gl/Texture.h"
+#include "cinder/ImageIo.h"
 #include "cinder/MayaCamUI.h"
 #include "cinder/Timeline.h"
+#include "cinder/Utilities.h"
 
 #include "mndlkit/params/PParams.h"
 #include "Cinder-Leap.h"
@@ -63,15 +65,6 @@ protected:
 	Vec3f mMovementRange;
 	float mParallaxScale;
 
-	/*
-	uint32_t                mCallbackId;
-	LeapSdk::HandMap        mHands;
-	LeapSdk::DeviceRef      mLeap;
-	void                    onFrame( LeapSdk::Frame frame );
-	int                     mActHand;
-	Gestures                mActGestures;
-	*/
-
 	gl::Light* mLight;
 	Vec3f      mLightDirection;
 
@@ -107,6 +100,9 @@ protected:
 
 	void startGame();
 	void endGame();
+
+	gl::Texture mIconLayer;
+	Anim< float > mIconAlpha;
 };
 
 void BulletAssimpModelApp::prepareSettings( Settings *settings )
@@ -149,17 +145,11 @@ void BulletAssimpModelApp::setup()
 
 	loadBackgroundLayers( "stage" );
 
-//	AssimpModel assimpModel();
+	mIconLayer = loadImage( loadAsset( "gui/icons.png" ) );
+	mIconAlpha = 0.f;
 
 	// Leap
 	mLeapController.addListener( mLeapListener );
-#if 0
-	mLeap = Device::create();
-	mCallbackId = mLeap->addCallback( &BulletAssimpModelApp::onFrame, this );
-	mLeap->enableGesture( Leap::Gesture::TYPE_KEY_TAP );
-	mActHand = -1;
-	mActGestures.clear();
-#endif
 }
 
 void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )
@@ -275,6 +265,9 @@ void BulletAssimpModelApp::startGame()
 		timeline().apply( &(*it)->mTimer, animDuration, animDuration );
 	}
 
+	mIconAlpha = 0.f;
+	timeline().apply( &mIconAlpha, 1.f, 2.f ).timelineEnd();
+
 	// add the bird after the last layer
 	timeline().add( [ this ]() {
 						for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
@@ -294,6 +287,9 @@ void BulletAssimpModelApp::endGame()
 		mBulletWorld.removeAssimpModel( mAssimpModel );
 		mAssimpModel = NULL;
 	}
+
+	mIconAlpha = 1.f;
+	timeline().apply( &mIconAlpha, 0.f, 2.f );
 
 	// animate the layers
 	double maxDuration = 0;
@@ -720,8 +716,7 @@ void BulletAssimpModelApp::updateLeap()
 
 void BulletAssimpModelApp::draw()
 {
-	// clear out the window with black
-	gl::clear( Colorf( 0.392, 0.392, 0.784 ));
+	gl::clear();
 
 	gl::setViewport( getWindowBounds() );
 	gl::setMatrices( mMayaCam.getCamera() );
@@ -729,6 +724,7 @@ void BulletAssimpModelApp::draw()
 	gl::enableDepthRead();
 	gl::enableDepthWrite();
 
+	gl::enable( GL_LIGHTING );
 	mLight->enable();
 	for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
 	{
@@ -737,6 +733,16 @@ void BulletAssimpModelApp::draw()
 
 	mBulletWorld.draw();
 	mLight->disable();
+
+	// icon layer
+	gl::disable( GL_LIGHTING );
+	gl::setMatricesWindow( getWindowSize() );
+	gl::disableDepthRead();
+	gl::disableDepthWrite();
+	gl::enableAlphaBlending();
+	gl::color( ColorA::gray( 1.f, mIconAlpha ) );
+	gl::draw( mIconLayer, Area::proportionalFit( mIconLayer.getBounds(), getWindowBounds(), false, true ) );
+	gl::disableAlphaBlending();
 
 	mParams.draw();
 
