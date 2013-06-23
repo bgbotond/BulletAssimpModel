@@ -582,7 +582,6 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 		return;
 
 	Quatf rot = Quatf( Vec3f::yAxis(), M_PI / 2.0f );
-	//Vec3f pos2  = rot * pos;
 	Vec3f dir2  = rot * dir;
 	Vec3f norm2 = rot * norm;
 
@@ -593,8 +592,8 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 	Quatf rotate = normQuat * dirQuat; // final rotation
 	rotate.normalize();
 
-	Vec3f posCenter = mAssimpHang->getNodeCross()->getDerivedPosition();
-	Vec3f translateString = Vec3f::zero();
+	Vec3f posCenter = mAssimpHang->getNodeCross()->getDerivedPosition() + pos;
+	Vec3f translateString = pos;
 // 	Vec3f translateString = pos2 - mAssimpHang->getNodeCross()->getDerivedPosition();
 // 	Vec3f posCenter = pos2;
 	btTransform transform;

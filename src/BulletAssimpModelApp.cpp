@@ -5,16 +5,15 @@
 #include "cinder/MayaCamUI.h"
 #include "cinder/Timeline.h"
 
-//#include "AntTweakBar.h"
 #include "mndlkit/params/PParams.h"
+#include "Cinder-Leap.h"
+
 #include "BulletWorld.h"
-#include "Cinder-LeapSdk.h"
+#include "LeapListener.h"
 
 using namespace ci;
 using namespace ci::app;
 using namespace std;
-using namespace LeapSdk;
-
 
 class BulletAssimpModelApp : public AppNative
 {
@@ -35,7 +34,7 @@ public:
 protected:
 	void setupParams();
 
-	int  getActHand( Frame& frame, int actHand );
+	//int  getActHand( Frame& frame, int actHand );
 
 	BulletWorld mBulletWorld;
 	AssimpModel *mAssimpModel;
@@ -58,16 +57,23 @@ protected:
 	Vec3f     mNormal;
 
 	// Leap
+	Leap::Controller mLeapController;
+	mndl::leap::LeapListener mLeapListener;
+
+	Vec3f mHandPos;
+	Vec3f mHandDir;
+	Vec3f mHandNorm;
+	bool mDrawVectors;
+	Vec3f mMovementRange;
+
+	/*
 	uint32_t                mCallbackId;
 	LeapSdk::HandMap        mHands;
 	LeapSdk::DeviceRef      mLeap;
 	void                    onFrame( LeapSdk::Frame frame );
 	int                     mActHand;
 	Gestures                mActGestures;
-	Vec3f                   mHandPos;
-	Vec3f                   mHandDir;
-	Vec3f                   mHandNorm;
-	bool                    mDrawVectors;
+	*/
 
 	gl::Light* mLight;
 	Vec3f      mLightDirection;
@@ -131,12 +137,15 @@ void BulletAssimpModelApp::setup()
 
 //	AssimpModel assimpModel();
 
-	// Start device
+	// Leap
+	mLeapController.addListener( mLeapListener );
+#if 0
 	mLeap = Device::create();
 	mCallbackId = mLeap->addCallback( &BulletAssimpModelApp::onFrame, this );
 	mLeap->enableGesture( Leap::Gesture::TYPE_KEY_TAP );
 	mActHand = -1;
 	mActGestures.clear();
+#endif
 }
 
 void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )
@@ -238,6 +247,7 @@ void BulletAssimpModelApp::endGame()
 }
 
 // Called when Leap frame data is ready
+#if 0
 void BulletAssimpModelApp::onFrame( Frame frame )
 {
 	mHands = frame.getHands();
@@ -245,7 +255,6 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 	mActHand = getActHand( frame, mActHand );
 	mActGestures.clear();
 
-#if 0
 	if( mActHand != -1 )
 	{
 		const vector<Leap::Gesture>& gestures = frame.getGestures();
@@ -280,9 +289,10 @@ void BulletAssimpModelApp::onFrame( Frame frame )
 			}
 		}
 	}
-#endif
 }
+#endif
 
+#if 0
 int BulletAssimpModelApp::getActHand( Frame& frame, int actHand )
 {
 	if( mHands.size())
@@ -312,6 +322,7 @@ int BulletAssimpModelApp::getActHand( Frame& frame, int actHand )
 
 	return -1;
 }
+#endif
 
 void BulletAssimpModelApp::setupParams()
 {
@@ -371,6 +382,9 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Hand dir" , &mHandDir , Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "Hand norm", &mHandNorm, Vec3f( -1, -1, -1 ), "", true );
 	mParams.addPersistentParam( "DrawVectors", &mDrawVectors, false );
+	mParams.addPersistentParam( "Range X", &mMovementRange.x, 80, "min=0" );
+	mParams.addPersistentParam( "Range Y", &mMovementRange.y, 100, "min=0" );
+	mParams.addPersistentParam( "Range Z", &mMovementRange.z, 0, "min=0" );
 }
 
 void BulletAssimpModelApp::mouseDown( MouseEvent event )
@@ -527,7 +541,26 @@ void BulletAssimpModelApp::update()
 	mLight->setDirection( mLightDirection * Vec3f( 1.f, 1.f, -1.f ) );
 	mLight->update( cam );
 
-	// Update device
+	// query Leap
+	const Leap::HandList hands = mLeapListener.getHands();
+	if ( !hands.empty() )
+	{
+		// get the first hand
+		const Leap::Hand hand = hands[ 0 ];
+		const Leap::InteractionBox ib = mLeapListener.getInteractionBox();
+
+		Leap::Vector npos = ib.normalizePoint( hand.palmPosition() );
+		Leap::Vector ncenter = ib.normalizePoint( ib.center() );
+
+		mHandPos = mMovementRange * mndl::leap::fromLeap( npos - ncenter );
+		mHandDir = mndl::leap::fromLeap( hand.direction() );
+		mHandNorm = mndl::leap::fromLeap( hand.palmNormal() );
+
+		if ( mAssimpModelDebug )
+			mBulletWorld.updateAssimpModel( mAssimpModelDebug, mHandPos, mHandDir, mHandNorm );
+	}
+
+#if 0
 	if( mLeap && mLeap->isConnected() )
 	{
 		mLeap->update();
@@ -561,10 +594,14 @@ void BulletAssimpModelApp::update()
 		mHandDir  = Vec3f( -1, -1, -1 );
 		mHandNorm = Vec3f( -1, -1, -1 );
 	}
+#endif
 
+/*
 	if( mAssimpModelDebug )
 		mBulletWorld.updateAssimpModel( mAssimpModelDebug, mPosition, mDirection.normalized(), mNormal.normalized() );
+*/
 
+#if 0
 	for( Gestures::const_iterator it = mActGestures.begin(); it != mActGestures.end(); ++it )
 	{
 		int animPos = *it;
@@ -573,6 +610,7 @@ void BulletAssimpModelApp::update()
 		if( mAssimpModel )
 			mAssimpModel->doAnimate( animPos );
 	}
+#endif
 
 	// change current camera
 	static int lastCamera = -1;
@@ -646,9 +684,6 @@ void BulletAssimpModelApp::resize()
 
 void BulletAssimpModelApp::shutdown()
 {
-	mLeap->removeCallback( mCallbackId );
-	mHands.clear();
-
 	mndl::params::PInterfaceGl::save();
 }
 

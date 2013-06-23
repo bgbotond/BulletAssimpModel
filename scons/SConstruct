@@ -3,7 +3,8 @@ env = Environment(ENV = {'PATH' : os.environ['PATH']})
 
 env['APP_TARGET'] = 'BulletAssimpModelApp'
 env['APP_SOURCES'] = ['AssimpModel.cpp', 'BulletConstraint.cpp', 'BulletWorld.cpp',
-	'BulletAssimpModelApp.cpp', 'BulletParameter.cpp', 'CinderBulletDebugDrawer.cpp']
+	'BulletAssimpModelApp.cpp', 'BulletParameter.cpp', 'CinderBulletDebugDrawer.cpp',
+	'LeapListener.cpp']
 env['ASSETS'] = ['tomi1.jpg', 'bird.dae', 'bird.xml']
 env['ASSETS'] += ['stage/*']
 env['DEBUG'] = 0
@@ -112,7 +113,7 @@ def copy_dylibs(target, source, env):
 	return 0
 
 env = SConscript('../../../blocks/MndlKit/scons/SConscript', exports = 'env')
-env = SConscript('../../../blocks/Cinder-LeapSdk/scons/SConscript', exports = 'env')
+env = SConscript('../../../blocks/Cinder-Leap/scons/SConscript', exports = 'env')
 env = SConscript('../../../blocks/Cinder-Assimp/scons/SConscript', exports = 'env')
 
 SConscript('../../../scons/SConscript', exports = 'env')
