@@ -65,6 +65,7 @@ protected:
 	Vec3f mHandNorm;
 	bool mDrawVectors;
 	Vec3f mMovementRange;
+	float mParallaxScale;
 
 	/*
 	uint32_t                mCallbackId;
@@ -80,10 +81,20 @@ protected:
 
 	// stage
 	void loadBackgroundLayers( const fs::path &relativeDir );
+	struct LayerInfo
+	{
+		string mName;
+		Vec3f mOrigPos;
+	};
+	typedef std::shared_ptr< LayerInfo > LayerInfoRef;
+
 	struct ModelInfo
 	{
 		mndl::assimp::AssimpLoaderRef mModel;
-		Anim< double > mTimer;
+		Anim< double > mTimer; // start/end animation
+
+		float mMinLayerDepth, mMaxLayerDepth; // minimum, maximum layer node depth (y-coordinate)
+		vector< LayerInfoRef > mLayerNodes; // nodes in the model with meshes
 	};
 	typedef std::shared_ptr< ModelInfo > ModelInfoRef;
 	vector< ModelInfoRef > mBackgroundLayers;
@@ -195,6 +206,29 @@ void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )
 				mi->mModel = model;
 				mi->mTimer = 0.;
 
+				float minDepth = numeric_limits< float >::max();
+				float maxDepth = numeric_limits< float >::min();
+
+				const vector< string > &nodeNames = model->getNodeNames();
+				for ( auto it = nodeNames.begin(); it != nodeNames.end(); ++it )
+				{
+					const mndl::assimp::AssimpNodeRef node = model->getAssimpNode( *it );
+					if ( node->mMeshes.empty() )
+						continue;
+
+					LayerInfoRef layer = LayerInfoRef( new LayerInfo() );
+					layer->mName = *it;
+					layer->mOrigPos = node->getPosition();
+					if ( layer->mOrigPos.y < minDepth )
+						minDepth = layer->mOrigPos.y;
+					if ( layer->mOrigPos.y > maxDepth )
+						maxDepth = layer->mOrigPos.z;
+
+					mi->mLayerNodes.push_back( layer );
+				}
+
+				mi->mMinLayerDepth = minDepth;
+				mi->mMaxLayerDepth = maxDepth;
 				mBackgroundLayers.push_back( mi );
 
 				// store model cameras
@@ -230,7 +264,7 @@ void BulletAssimpModelApp::startGame()
 	for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
 	{
 		double animDuration = (*it)->mModel->getAnimationDuration( 0 );
-		app::console() << animDuration << endl;
+		(*it)->mModel->enableAnimation( true );
 		maxDuration = math< double >::max( animDuration, maxDuration );
 		(*it)->mTimer = 0.;
 		timeline().apply( &(*it)->mTimer, animDuration * .99, animDuration );
@@ -238,6 +272,10 @@ void BulletAssimpModelApp::startGame()
 
 	// add the bird after the last layer
 	timeline().add( [ this ]() {
+						for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
+						{
+							(*it)->mModel->enableAnimation( false );
+						}
 						mAssimpModelDebug = mBulletWorld.spawnAssimpModel( mPosition );
 					}, timeline().getCurrentTime() + maxDuration + .5 );
 }
@@ -385,6 +423,7 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Range X", &mMovementRange.x, 80, "min=0" );
 	mParams.addPersistentParam( "Range Y", &mMovementRange.y, 100, "min=0" );
 	mParams.addPersistentParam( "Range Z", &mMovementRange.z, 0, "min=0" );
+	mParams.addPersistentParam( "Parallax scale", &mParallaxScale, 10, "min=0 step=.1" );
 }
 
 void BulletAssimpModelApp::mouseDown( MouseEvent event )
@@ -625,6 +664,21 @@ void BulletAssimpModelApp::update()
 	{
 		(*it)->mModel->setTime( (*it)->mTimer );
 		(*it)->mModel->update();
+
+		// update background model layers
+		float layerMove = mParallaxScale * mHandPos.x / mMovementRange.x;
+		auto layers = (*it)->mLayerNodes;
+		for ( auto lit = layers.begin(); lit != layers.end(); ++lit )
+		{
+			const mndl::assimp::AssimpNodeRef node = (*it)->mModel->getAssimpNode( (*lit)->mName );
+			float scaleX = node->getScale().x;
+
+			if ( scaleX == 0.f )
+				continue;
+
+			float parallax = lmap< float >( (*lit)->mOrigPos.y, (*it)->mMinLayerDepth, (*it)->mMaxLayerDepth, 1.f, 0.f );
+			node->setPosition( (*lit)->mOrigPos + Vec3f( parallax * layerMove / scaleX,  0.f, 0.f ) );
+		}
 	}
 }
 
@@ -687,4 +741,4 @@ void BulletAssimpModelApp::shutdown()
 	mndl::params::PInterfaceGl::save();
 }
 
-CINDER_APP_NATIVE( BulletAssimpModelApp, RendererGl( RendererGl::AA_MSAA_16 ) )
+CINDER_APP_NATIVE( BulletAssimpModelApp, RendererGl( RendererGl::AA_MSAA_6 ) )
