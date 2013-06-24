@@ -262,6 +262,8 @@ void BulletAssimpModelApp::startGame()
 		mAssimpModel = NULL;
 	}
 
+	GlobalData::get().mAudio.play( "stage_build" );
+
 	// animate the layers
 	double maxDuration = 0;
 	for ( auto it = mBackgroundLayers.begin(); it != mBackgroundLayers.end(); ++it )
@@ -290,6 +292,8 @@ void BulletAssimpModelApp::startGame()
 						// FIXME: birth position
 						mAssimpModel = mBulletWorld.spawnAssimpModel( Vec3f::zero() );
 						//mBulletWorld.updateAssimpModel( mAssimpModel, mHandPos, mHandDir, mHandNorm );
+
+						GlobalData::get().mAudio.play( "forest_loop", 1.f, true );
 					}, timeline().getCurrentTime() + maxDuration );
 }
 
@@ -305,6 +309,9 @@ void BulletAssimpModelApp::endGame()
 
 	mIconAlpha = 1.f;
 	timeline().apply( &mIconAlpha, 0.f, 2.f );
+
+	GlobalData::get().mAudio.stop( "forest_loop" );
+	GlobalData::get().mAudio.play( "stage_build" );
 
 	// animate the layers
 	double maxDuration = 0;
