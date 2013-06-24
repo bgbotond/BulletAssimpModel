@@ -177,9 +177,13 @@ public:
 	void             addAssimpAnimBone( const AssimpAnimBoneRef& assimpAnimBone );
 	AssimpAnimBones& getAssimpAnimBones();
 
+	void addSound( std::string soundName ) { mSounds.push_back( soundName ); }
+	const std::vector< std::string > & getSounds() { return mSounds; }
+
 protected:
 	std::string     mName;
 	AssimpAnimBones mAssimpAnimBones;
+	std::vector< std::string > mSounds;
 };
 
 class AssimpModel

@@ -292,6 +292,7 @@ void BulletWorld::destroyConstraint( btConeTwistConstraint* constraint )
 
 AssimpModel *BulletWorld::spawnAssimpModel( const ci::Vec3f &pos )
 {
+	// FIXME: loading the model every time is not good
 	AssimpModel *assimpModel = new AssimpModel( this, pos, ci::app::App::get()->getAssetPath( "bird.dae" ), ci::app::App::get()->getAssetPath( "bird.xml" ) );
 	//AssimpModel *assimpModel = new AssimpModel( this, posConv, ci::app::App::get()->getAssetPath( "madar_0618.dae" ), ci::app::App::get()->getAssetPath( "madar_0618.xml" ) );
 	mAssimpModels.push_back( assimpModel );

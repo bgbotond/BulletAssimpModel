@@ -2,11 +2,11 @@ import os
 env = Environment(ENV = {'PATH' : os.environ['PATH']})
 
 env['APP_TARGET'] = 'BulletAssimpModelApp'
-env['APP_SOURCES'] = ['AssimpModel.cpp', 'BulletConstraint.cpp', 'BulletWorld.cpp',
+env['APP_SOURCES'] = ['AssimpModel.cpp', 'Audio.cpp', 'BulletConstraint.cpp', 'BulletWorld.cpp',
 	'BulletAssimpModelApp.cpp', 'BulletParameter.cpp', 'CinderBulletDebugDrawer.cpp',
 	'LeapListener.cpp']
 env['ASSETS'] = ['tomi1.jpg', 'bird.dae', 'bird.xml']
-env['ASSETS'] += ['stage/*', 'gui/icons.png']
+env['ASSETS'] += ['stage/*', 'gui/icons.png', 'sfx/*.ogg']
 env['DEBUG'] = 0
 
 def CheckPKGConfig(context, version):
@@ -115,6 +115,7 @@ def copy_dylibs(target, source, env):
 env = SConscript('../../../blocks/MndlKit/scons/SConscript', exports = 'env')
 env = SConscript('../../../blocks/Cinder-Leap/scons/SConscript', exports = 'env')
 env = SConscript('../../../blocks/Cinder-Assimp/scons/SConscript', exports = 'env')
+env = SConscript('../../../blocks/Cinder-OpenAL/scons/SConscript', exports = 'env')
 
 SConscript('../../../scons/SConscript', exports = 'env')
 

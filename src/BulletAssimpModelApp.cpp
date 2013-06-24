@@ -12,6 +12,7 @@
 #include "Cinder-Leap.h"
 
 #include "BulletWorld.h"
+#include "GlobalData.h"
 #include "LeapListener.h"
 
 using namespace ci;
@@ -154,6 +155,9 @@ void BulletAssimpModelApp::setup()
 	// Leap
 	mLeapController.addListener( mLeapListener );
 	mLeapListener.connectTap< BulletAssimpModelApp >( &BulletAssimpModelApp::onTap, this );
+
+	// sounds
+	GlobalData::get().mAudio.setup( getAssetPath( "sfx" ) );
 }
 
 void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )

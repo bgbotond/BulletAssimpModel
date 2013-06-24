@@ -3,11 +3,13 @@
 #include "cinder/app/App.h"
 #include "cinder/CinderMath.h"
 #include "cinder/Quaternion.h"
+#include "cinder/Rand.h"
 #include "cinder/Vector.h"
 #include "CinderBullet.h"
 #include "AssimpModel.h"
 #include "BulletSoftBody/btSoftBodyHelpers.h"
 #include "BulletWorld.h"
+#include "GlobalData.h"
 
 using namespace ci;
 using namespace mndl;
@@ -127,7 +129,7 @@ void AssimpModel::loadDataJoints( const XmlTree& xmlNode )
 		assimpJoint->setSwing2( swing2 );
 		assimpJoint->setTwist( twist );
 
-		mAssimpJoints.push_back( assimpJoint ); 
+		mAssimpJoints.push_back( assimpJoint );
 	}
 }
 
@@ -224,20 +226,25 @@ void AssimpModel::loadDataAnim( const XmlTree& xmlNode )
 
 	for( XmlTree::ConstIter child = xmlNode.begin(); child != xmlNode.end(); ++child )
 	{
-		if( child->getTag() != "Bone" )
-			continue;
+		if( child->getTag() == "Bone" )
+		{
+			std::string nameBone = child->getAttributeValue<std::string>( "name", "" );
+			float       rotateX  = child->getAttributeValue<float>( "rotateX", 0.0 );
+			float       rotateY  = child->getAttributeValue<float>( "rotateY", 0.0 );
+			float       rotateZ  = child->getAttributeValue<float>( "rotateZ", 0.0 );
 
-		std::string nameBone = child->getAttributeValue<std::string>( "name", "" );
-		float       rotateX  = child->getAttributeValue<float>( "rotateX", 0.0 );
-		float       rotateY  = child->getAttributeValue<float>( "rotateY", 0.0 );
-		float       rotateZ  = child->getAttributeValue<float>( "rotateZ", 0.0 );
+			AssimpBoneRef assimpBone = getAssimpBone( nameBone );
+			Vec3f         impulse    = Vec3f( rotateX, rotateY, rotateZ );
 
-		AssimpBoneRef assimpBone = getAssimpBone( nameBone );
-		Vec3f         impulse    = Vec3f( rotateX, rotateY, rotateZ );
+			AssimpAnimBoneRef assimpAnimBone = AssimpAnimBoneRef( new AssimpAnimBone( assimpBone, impulse ) );
 
-		AssimpAnimBoneRef assimpAnimBone = AssimpAnimBoneRef( new AssimpAnimBone( assimpBone, impulse ) );
-
-		assimpAnim->addAssimpAnimBone( assimpAnimBone );
+			assimpAnim->addAssimpAnimBone( assimpAnimBone );
+		}
+		else
+		if( child->getTag() == "sound")
+		{
+			assimpAnim->addSound( child->getValue() );
+		}
 	}
 
 	mAssimpAnims.push_back( assimpAnim );
@@ -650,6 +657,9 @@ void AssimpModel::doAnimate( int pos )
 		return;
 
 	AssimpAnimRef assimpAnim = mAssimpAnims[ pos ];
+	const std::vector< std::string > & sounds = assimpAnim->getSounds();
+	if ( !sounds.empty() )
+		GlobalData::get().mAudio.play( sounds[ Rand::randInt( sounds.size() ) ] );
 
 	for( AssimpAnim::AssimpAnimBones::const_iterator it = assimpAnim->getAssimpAnimBones().begin(); it != assimpAnim->getAssimpAnimBones().end(); ++it )
 	{
