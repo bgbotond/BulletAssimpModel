@@ -5,8 +5,8 @@
       <author>Gáspár Hajdu - gase12@gmail.com</author>
       <authoring_tool>Blender 2.67.0 r56533</authoring_tool>
     </contributor>
-    <created>2013-06-23T23:57:21</created>
-    <modified>2013-06-23T23:57:21</modified>
+    <created>2013-06-24T15:00:43</created>
+    <modified>2013-06-24T15:00:43</modified>
     <unit name="meter" meter="0.0254"/>
     <up_axis>Z_UP</up_axis>
   </asset>
@@ -397,27 +397,27 @@
         </instance_controller>
       </node>
       <node id="head_node" name="head_node" type="NODE">
-        <matrix sid="transform">1 0 0 8.913383 0 1 0 -3.21022e-7 0 0 1 29.54364 0 0 0 1</matrix>
+        <matrix sid="transform">1 0 0 8.913383 0 1 0 -3.21022e-7 0 0 1 39.35793 0 0 0 1</matrix>
         <instance_geometry url="#Plane_001-mesh"/>
       </node>
       <node id="body_node" name="body_node" type="NODE">
-        <matrix sid="transform">1 0 0 3.310901 0 1 0 -3.34152e-7 0 0 1 29.54364 0 0 0 1</matrix>
+        <matrix sid="transform">1 0 0 3.310901 0 1 0 -3.34152e-7 0 0 1 39.35793 0 0 0 1</matrix>
         <instance_geometry url="#Plane_002-mesh"/>
       </node>
       <node id="l_foot_node" name="l_foot_node" type="NODE">
-        <matrix sid="transform">1 0 0 -4.061891 0 1 0 5.24075 0 0 1 29.54364 0 0 0 1</matrix>
+        <matrix sid="transform">1 0 0 -4.061891 0 1 0 5.24075 0 0 1 39.35793 0 0 0 1</matrix>
         <instance_geometry url="#Plane_003-mesh"/>
       </node>
       <node id="r_foot_node" name="r_foot_node" type="NODE">
-        <matrix sid="transform">1 0 0 -4.061893 0 1 0 -5.435014 0 0 1 29.54364 0 0 0 1</matrix>
+        <matrix sid="transform">1 0 0 -4.061893 0 1 0 -5.435014 0 0 1 39.35793 0 0 0 1</matrix>
         <instance_geometry url="#Plane_004-mesh"/>
       </node>
       <node id="tail_node" name="tail_node" type="NODE">
-        <matrix sid="transform">1 0 0 -6.572252 0 1 0 -0.02455756 0 0 1 29.54364 0 0 0 1</matrix>
+        <matrix sid="transform">1 0 0 -6.572252 0 1 0 -0.02455756 0 0 1 39.35793 0 0 0 1</matrix>
         <instance_geometry url="#Plane_005-mesh"/>
       </node>
       <node id="cross_node" name="cross_node" type="NODE">
-        <matrix sid="transform">1 0 0 -4.061892 0 1 0 3.10398e-7 0 0 1 29.54364 0 0 0 1</matrix>
+        <matrix sid="transform">1 0 0 -4.061892 0 1 0 3.10398e-7 0 0 1 39.35793 0 0 0 1</matrix>
         <instance_geometry url="#Plane_006-mesh"/>
       </node>
     </visual_scene>

@@ -599,8 +599,27 @@ void AssimpModel::updateHang( const Vec3f pos, const Vec3f dir, const Vec3f norm
 	Quatf rotate = normQuat * dirQuat; // final rotation
 	rotate.normalize();
 
-	Vec3f posCenter = mAssimpHang->getNodeCross()->getDerivedPosition() + pos;
-	Vec3f translateString = pos;
+	// TODO: hardcoded limit on cross bar position
+	Vec3f pos2 = pos;
+	const float yLimit = -3.f;
+	if ( pos2.y <= yLimit )
+		pos2.y = yLimit;
+	Vec3f posCenter = mAssimpHang->getNodeCross()->getDerivedPosition() + pos2;
+	Vec3f translateString = pos2;
+
+	// constraint to avoid quick position changes
+	btMotionState* oldMotionState = mAssimpHang->getRigidBody()->getMotionState();
+	btTransform oldTrans;
+	oldMotionState->getWorldTransform( oldTrans );
+	Vec3f oldCenter = CinderBullet::convert( oldTrans.getOrigin() );
+	float d = oldCenter.distance( posCenter );
+	const float maxDist = 5.f;
+	if ( d > maxDist )
+	{
+		Vec3f n = ( posCenter - oldCenter ).normalized();
+		posCenter = oldCenter + n * maxDist;
+	}
+
 // 	Vec3f translateString = pos2 - mAssimpHang->getNodeCross()->getDerivedPosition();
 // 	Vec3f posCenter = pos2;
 	btTransform transform;

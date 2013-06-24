@@ -269,7 +269,7 @@ void BulletAssimpModelApp::startGame()
 	mSplashAlpha = 1.f;
 	timeline().apply( &mSplashAlpha, 0.f, 1.f );
 
-	GlobalData::get().mAudio.play( "stage_build" );
+	GlobalData::get().mAudio.play( "stage_build", .6f );
 
 	// animate the layers
 	double maxDuration = 0;
@@ -297,7 +297,7 @@ void BulletAssimpModelApp::startGame()
 						}
 						//timeline().applyPtr( &mHandPos, Vec3f::zero(), 2.f );
 						// FIXME: birth position
-						mAssimpModel = mBulletWorld.spawnAssimpModel( Vec3f::zero() );
+						mAssimpModel = mBulletWorld.spawnAssimpModel( Vec3f( 0, 1, 0 ) ); //Vec3f::zero() );
 						//mBulletWorld.updateAssimpModel( mAssimpModel, mHandPos, mHandDir, mHandNorm );
 
 						GlobalData::get().mAudio.play( "forest_loop", 1.f, true );
@@ -308,17 +308,15 @@ void BulletAssimpModelApp::endGame()
 {
 	mState = STATE_IDLE;
 
-	if ( mAssimpModel )
-	{
-		mBulletWorld.removeAssimpModel( mAssimpModel );
-		mAssimpModel = NULL;
-	}
-
 	mIconAlpha = 1.f;
 	timeline().apply( &mIconAlpha, 0.f, 2.f );
 
+	// lift up model
+	if ( mAssimpModel )
+		timeline().applyPtr( &mHandPos, mHandPos + Vec3f(  0., 100.f, 0. ), 2.5f );
+
 	GlobalData::get().mAudio.stop( "forest_loop" );
-	GlobalData::get().mAudio.play( "stage_build" );
+	GlobalData::get().mAudio.play( "stage_build", .6f );
 
 	// animate the layers
 	double maxDuration = 0;
@@ -333,6 +331,14 @@ void BulletAssimpModelApp::endGame()
 
 	mSplashAlpha = 0.f;
 	timeline().apply( &mSplashAlpha, 1.f, 2.f ).timelineEnd();
+	// remove model
+	timeline().add( [ this ]() {
+					if ( mAssimpModel )
+					{
+						mBulletWorld.removeAssimpModel( mAssimpModel );
+						mAssimpModel = NULL;
+					}
+				}, timeline().getCurrentTime() + 3. );
 }
 
 // Called when Leap frame data is ready
@@ -431,7 +437,7 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Center of Interest", &mCameraCenterOfInterestPoint, Vec3f( 0.0f, 10.0f, 0.0f ));
 	*/
 	mParams.addText( "Light" );
-	mParams.addPersistentParam( "Light direction", &mLightDirection, Vec3f( -0.93f, -0.27f, -0.26f ) );
+	mParams.addPersistentParam( "Light direction", &mLightDirection, Vec3f( -0.30f, 0.4f, -0.96f ) );
 
 	mParams.addButton( "Start (k)", std::bind( &BulletAssimpModelApp::startGame, this ) );
 
@@ -460,7 +466,7 @@ void BulletAssimpModelApp::setupParams()
 	mParams.addPersistentParam( "Smoothing", &mSmoothing, 0.95f, "min=.0 max=.99 step=.01" );
 	mParams.addPersistentParam( "DrawVectors", &mDrawVectors, false );
 	mParams.addSeparator();
-	mParams.addPersistentParam( "Range X", &mMovementRange.x, 80, "min=0" );
+	mParams.addPersistentParam( "Range X", &mMovementRange.x, 120, "min=0" );
 	mParams.addPersistentParam( "Range Y", &mMovementRange.y, 100, "min=0" );
 	mParams.addPersistentParam( "Range Z", &mMovementRange.z, 0, "min=0" );
 	mParams.addPersistentParam( "Parallax scale", &mParallaxScale, 100, "step=.1" );
