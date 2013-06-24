@@ -6,7 +6,7 @@ env['APP_SOURCES'] = ['AssimpModel.cpp', 'Audio.cpp', 'BulletConstraint.cpp', 'B
 	'BulletAssimpModelApp.cpp', 'BulletParameter.cpp', 'CinderBulletDebugDrawer.cpp',
 	'LeapListener.cpp']
 env['ASSETS'] = ['tomi1.jpg', 'bird.dae', 'bird.xml']
-env['ASSETS'] += ['stage/*', 'gui/icons.png', 'sfx/*.ogg']
+env['ASSETS'] += ['stage/*', 'gui/icons.png', 'gui/splash.jpg', 'sfx/*.ogg']
 env['DEBUG'] = 0
 
 def CheckPKGConfig(context, version):

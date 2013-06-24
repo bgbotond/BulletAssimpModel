@@ -105,6 +105,8 @@ protected:
 
 	gl::Texture mIconLayer;
 	Anim< float > mIconAlpha;
+	gl::Texture mSplashLayer;
+	Anim< float > mSplashAlpha;
 
 	void onTap( int32_t id );
 };
@@ -151,6 +153,8 @@ void BulletAssimpModelApp::setup()
 
 	mIconLayer = loadImage( loadAsset( "gui/icons.png" ) );
 	mIconAlpha = 0.f;
+	mSplashLayer = loadImage( loadAsset( "gui/splash.jpg" ) );
+	mSplashAlpha = 1.f;
 
 	// Leap
 	mLeapController.addListener( mLeapListener );
@@ -262,6 +266,9 @@ void BulletAssimpModelApp::startGame()
 		mAssimpModel = NULL;
 	}
 
+	mSplashAlpha = 1.f;
+	timeline().apply( &mSplashAlpha, 0.f, 1.f );
+
 	GlobalData::get().mAudio.play( "stage_build" );
 
 	// animate the layers
@@ -323,6 +330,9 @@ void BulletAssimpModelApp::endGame()
 		(*it)->mTimer = animDuration;
 		timeline().apply( &(*it)->mTimer, 0., animDuration );
 	}
+
+	mSplashAlpha = 0.f;
+	timeline().apply( &mSplashAlpha, 1.f, 2.f ).timelineEnd();
 }
 
 // Called when Leap frame data is ready
@@ -716,6 +726,10 @@ void BulletAssimpModelApp::updateLeap()
 	const double handRemovedDurationThr = 4.;
 
 	double now = getElapsedSeconds();
+	if ( lastDisappeared == 0. )
+	{
+		lastDisappeared = now;
+	}
 
 	// query Leap
 	const Leap::HandList hands = mLeapListener.getHands();
@@ -775,16 +789,25 @@ void BulletAssimpModelApp::draw()
 	mBulletWorld.draw();
 	mLight->disable();
 
-	// icon layer
+	// splash & icon layer
 	gl::disable( GL_LIGHTING );
 	gl::setMatricesWindow( getWindowSize() );
 	gl::disableDepthRead();
 	gl::disableDepthWrite();
 	gl::enableAlphaBlending();
-	gl::color( ColorA::gray( 1.f, mIconAlpha ) );
-	Area outputArea = Area::proportionalFit( mIconLayer.getBounds(), getWindowBounds(), false, true );
-	outputArea += Vec2i( 0, getWindowHeight() - outputArea.getHeight() );
-	gl::draw( mIconLayer, outputArea );
+	if ( mIconAlpha > 0.f )
+	{
+		gl::color( ColorA::gray( 1.f, mIconAlpha ) );
+		Area outputArea = Area::proportionalFit( mIconLayer.getBounds(), getWindowBounds(), false, true );
+		outputArea += Vec2i( 0, getWindowHeight() - outputArea.getHeight() );
+		gl::draw( mIconLayer, outputArea );
+	}
+	if ( mSplashAlpha > 0.f )
+	{
+		gl::color( ColorA::gray( 1.f, mSplashAlpha ) );
+		Area outputArea = Area::proportionalFit( mSplashLayer.getBounds(), getWindowBounds(), true, true );
+		gl::draw( mSplashLayer, outputArea );
+	}
 	gl::disableAlphaBlending();
 
 	mParams.draw();
