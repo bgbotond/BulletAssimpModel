@@ -1,4 +1,5 @@
 #include "cinder/app/App.h"
+#include "cinder/CinderMath.h"
 
 #include "LeapListener.h"
 
@@ -26,8 +27,8 @@ void LeapListener::onFrame( const Leap::Controller &controller )
 
 		if ( gesture.type() == Leap::Gesture::TYPE_KEY_TAP )
 		{
-			Leap::PointableList gesturePointables = gesture.pointables();
-			Leap::HandList gestureHands = gesture.hands();
+			Leap::KeyTapGesture tap = gesture;
+			mTapSignal( tap.pointable().id() );
 		}
 	}
 }

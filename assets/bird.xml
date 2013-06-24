@@ -198,9 +198,15 @@
     <Anim
       name = "sing">
       <Bone
+        name    = "T_beak"
+        rotateX = "0"
+        rotateY = "1.6"
+        rotateZ = "0">
+      </Bone>
+      <Bone
         name    = "B_beak"
         rotateX = "0"
-        rotateY = "-0.3"
+        rotateY = "-1.6"
         rotateZ = "0">
       </Bone>
     </Anim>

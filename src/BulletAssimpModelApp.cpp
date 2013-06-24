@@ -4,6 +4,7 @@
 #include "cinder/gl/Texture.h"
 #include "cinder/ImageIo.h"
 #include "cinder/MayaCamUI.h"
+#include "cinder/Rand.h"
 #include "cinder/Timeline.h"
 #include "cinder/Utilities.h"
 
@@ -19,8 +20,6 @@ using namespace std;
 
 class BulletAssimpModelApp : public AppNative
 {
-	typedef std::vector< int > Gestures;
-
 public:
 	void prepareSettings( Settings *settings );
 	void setup();
@@ -105,6 +104,8 @@ protected:
 
 	gl::Texture mIconLayer;
 	Anim< float > mIconAlpha;
+
+	void onTap( int32_t id );
 };
 
 void BulletAssimpModelApp::prepareSettings( Settings *settings )
@@ -152,6 +153,7 @@ void BulletAssimpModelApp::setup()
 
 	// Leap
 	mLeapController.addListener( mLeapListener );
+	mLeapListener.connectTap< BulletAssimpModelApp >( &BulletAssimpModelApp::onTap, this );
 }
 
 void BulletAssimpModelApp::loadBackgroundLayers( const fs::path &relativeDir )
@@ -559,6 +561,16 @@ void BulletAssimpModelApp::keyDown( KeyEvent event )
 	}
 }
 
+void BulletAssimpModelApp::onTap( int32_t id )
+{
+	//app::console() << "tap " << id << endl;
+	// TODO: detect finger and play animation accordingly
+	if ( mAssimpModel )
+	{
+		mAssimpModel->doAnimate( Rand::randInt( 3 ) );
+	}
+}
+
 void BulletAssimpModelApp::update()
 {
 	mFps = getAverageFps();
@@ -719,6 +731,8 @@ void BulletAssimpModelApp::updateLeap()
 		mHandNorm = mHandNorm.slerp( mSmoothing, handNorm );
 		mHandDir = handDir;
 		mHandNorm = handNorm;
+
+		//const Leap::FinderList fingers = hand.fingers();
 	}
 	else
 	{
