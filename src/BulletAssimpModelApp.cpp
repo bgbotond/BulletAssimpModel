@@ -696,6 +696,7 @@ void BulletAssimpModelApp::update()
 	if ( lastCamera != mCameraIndex )
 	{
 		mMayaCam.setCurrentCam( mCameras[ mCameraIndex ] );
+		resize(); // set the current aspect ratio
 		lastCamera = mCameraIndex;
 	}
 
